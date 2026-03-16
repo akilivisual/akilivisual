@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ViewMode, Book, UserProfile, AuthorProfile, Message } from '../types';
 import { MOCK_BOOKS } from '../constants';
 import { supabaseService } from '../services/supabaseService';
+import { getSupabase } from '../lib/supabase';
 
 export function useStage() {
   const [view, setView] = useState<ViewMode>('LIBRARY');
@@ -18,7 +19,6 @@ export function useStage() {
   const [saveSession, setSaveSession] = useState(true);
 
   useEffect(() => {
-    const { getSupabase } = require('../lib/supabase');
     const supabase = getSupabase();
 
     const checkAuth = async (sessionUser: any) => {
