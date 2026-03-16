@@ -1,0 +1,7 @@
+{
+  "name": "Living Book Companion",
+  "description": "An AI-powered interactive book system designed to enhance reader engagement through conversational and adaptive experiences.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
