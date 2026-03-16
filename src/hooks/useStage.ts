@@ -18,24 +18,43 @@ export function useStage() {
   const [saveSession, setSaveSession] = useState(true);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const { getSupabase } = require('../lib/supabase');
+    const supabase = getSupabase();
+
+    const checkAuth = async (sessionUser: any) => {
       try {
-        const profile = await supabaseService.getCurrentUser();
-        if (profile) {
-          setUser(profile);
-          const authorProfile = await supabaseService.getAuthorProfile(profile.id);
-          setAuthor(authorProfile);
-          
-          const realBooks = await supabaseService.getBooks();
-          if (realBooks.length > 0) {
-            setBooks(prev => [...realBooks, ...prev]);
+        if (sessionUser) {
+          const profile = await supabaseService.getCurrentUser();
+          if (profile) {
+            setUser(profile);
+            const authorProfile = await supabaseService.getAuthorProfile(profile.id);
+            setAuthor(authorProfile);
+            
+            const realBooks = await supabaseService.getBooks();
+            if (realBooks.length > 0) {
+              setBooks(prev => [...realBooks, ...prev]);
+            }
           }
+        } else {
+          setUser(null);
+          setAuthor(null);
         }
       } catch (err) {
         console.error('Auth check failed:', err);
       }
     };
-    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+      checkAuth(session?.user);
+    });
+
+    // Initial check
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      checkAuth(session?.user);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return {

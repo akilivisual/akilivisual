@@ -8,11 +8,28 @@ export const supabaseService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { data: profile } = await supabase
+    // Fetch profile
+    let { data: profile, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
+    
+    // If no profile exists, create one from Google metadata
+    if (!profile && !error) {
+      const { data: newProfile, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata.full_name || user.email?.split('@')[0] || 'Reader',
+          role: 'reader'
+        })
+        .select()
+        .single();
+      
+      if (!createError) return newProfile as UserProfile;
+    }
     
     return profile as UserProfile;
   },
