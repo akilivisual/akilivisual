@@ -1,7 +1,8 @@
 import React from 'react';
 import { ChevronDown, Search, MoreVertical, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Book } from '../../types';
+import { Book, Chapter } from '../../types';
+import { supabaseService } from '../../services/supabaseService';
 
 interface ReadViewProps {
   book: Book;
@@ -9,6 +10,32 @@ interface ReadViewProps {
 }
 
 export function ReadView({ book, onAiClick }: ReadViewProps) {
+  const [currentChapterIndex, setCurrentChapterIndex] = React.useState(0);
+  const [chapterContent, setChapterContent] = React.useState<string>('');
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const currentChapter = book.chapters[currentChapterIndex];
+
+  React.useEffect(() => {
+    if (currentChapter?.id) {
+      loadContent(currentChapter.id);
+    } else {
+      setChapterContent(book.content || 'No content available.');
+    }
+  }, [book.id, currentChapterIndex]);
+
+  const loadContent = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const content = await supabaseService.getBookChapter(id);
+      setChapterContent(content || 'Chapter content not found.');
+    } catch (err) {
+      console.error('Failed to load chapter content:', err);
+      setChapterContent('Error loading content.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="flex h-full overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -16,8 +43,10 @@ export function ReadView({ book, onAiClick }: ReadViewProps) {
           <div className="flex justify-between items-center max-w-4xl mx-auto w-full">
             <button className="p-2 -ml-2 text-gray-400 hover:text-white md:hidden"><ChevronDown className="rotate-90" /></button>
             <div className="text-center md:text-left">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Chapter 4</span>
-              <h1 className="text-sm font-semibold text-gray-200">{book.chapters[book.chapters.length - 1]?.title || book.title}</h1>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">
+                {currentChapter ? `Chapter ${currentChapterIndex + 1}` : 'Reading'}
+              </span>
+              <h1 className="text-sm font-semibold text-gray-200">{currentChapter?.title || book.title}</h1>
             </div>
             <div className="flex items-center gap-2">
               <button className="p-2 text-gray-400 hover:text-white hidden md:flex items-center gap-2 text-xs font-medium border border-white/10 rounded-lg px-3">
@@ -29,14 +58,21 @@ export function ReadView({ book, onAiClick }: ReadViewProps) {
         </header>
         
         <main className="flex-1 overflow-y-auto no-scrollbar px-4 pb-32">
-          <article className="max-w-prose mx-auto glass-panel rounded-3xl p-8 md:p-12 shadow-2xl mt-4">
-            <div className="font-serif text-lg md:text-2xl text-gray-300 space-y-8 leading-relaxed">
-              <p className="first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-brand-blue">The sun had dipped below the horizon hours ago, leaving the valley in a deep, sapphire gloom. Elara adjusted her cloak, the heavy wool scratching against her neck as she peered into the reflective surface of the Obsidian Mirror.</p>
-              <p>It wasn't just a relic; it was a doorway. Or so the legends whispered in the tavern corners of Oakhaven. To Elara, it looked like a sheet of frozen night, polished so smooth that the stars themselves seemed to get lost in its depths.</p>
-              <p>"Are you certain of this?" Kael asked from the shadows. His voice was a rasp, tight with a fear he refused to name. He stepped into the faint circle of light cast by Elara's lantern.</p>
-              <p>She didn't look away from the glass. "Certainty is a luxury we burned along with the maps, Kael. We follow the reflection now, or we don't follow anything at all."</p>
-              <p>She reached out, her fingertips hovering just inches from the cold surface. The air around the mirror hummed with a low-frequency vibration that rattled her teeth. It was the sound of a world holding its breath.</p>
-            </div>
+          <article className="max-w-prose mx-auto glass-panel rounded-3xl p-8 md:p-12 shadow-2xl mt-4 min-h-[60vh]">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center p-20 gap-4">
+                <div className="size-10 border-4 border-brand-blue/30 border-t-brand-blue rounded-full animate-spin"></div>
+                <p className="text-sm text-slate-500">Retrieving Meaning Layer...</p>
+              </div>
+            ) : (
+              <div className="font-serif text-lg md:text-xl text-gray-300 space-y-6 leading-relaxed whitespace-pre-wrap">
+                {chapterContent.split('\n\n').map((para, idx) => (
+                  <p key={idx} className={idx === 0 ? "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-brand-blue" : ""}>
+                    {para}
+                  </p>
+                ))}
+              </div>
+            )}
           </article>
         </main>
 

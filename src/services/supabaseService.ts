@@ -162,9 +162,10 @@ export const supabaseService = {
 
   async getBooks() {
     const supabase = getSupabase();
+    // Fetch books with author name and chapter titles/metadata
     const { data, error } = await supabase
       .from('books')
-      .select('*, authors(users!user_id(name))');
+      .select('*, authors(users!user_id(name)), chapters(id, title, sequence_number)');
     
     if (error) throw error;
 
@@ -173,15 +174,33 @@ export const supabaseService = {
       id: b.id,
       title: b.title,
       author: b.authors?.users?.name || 'Unknown Author',
-      coverUrl: `https://picsum.photos/seed/${b.id}/400/600`, // Placeholder cover
+      coverUrl: `https://picsum.photos/seed/${b.id}/400/600`,
       progress: 0,
-      category: 'New',
-      content: 'Content processing...',
-      chapters: [],
+      category: b.category || 'New',
+      content: 'Select a chapter to begin reading...',
+      chapters: (b.chapters || [])
+        .sort((a: any, b: any) => a.sequence_number - b.sequence_number)
+        .map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          content: '' // Content fetched on demand or kept empty in library view
+        })),
       pdf_path: b.pdf_path,
       uploaded_at: b.uploaded_at,
       metadata: b.metadata
     })) as Book[];
+  },
+
+  async getBookChapter(chapterId: string) {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('chapters')
+      .select('content')
+      .eq('id', chapterId)
+      .single();
+    
+    if (error) throw error;
+    return data.content;
   },
 
   async getAuthorProfile(userId: string) {
