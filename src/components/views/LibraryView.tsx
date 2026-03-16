@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, User } from 'lucide-react';
-import { Book } from '../../types';
+import { Book, UserProfile } from '../../types';
 
 interface LibraryViewProps {
   books: Book[];
