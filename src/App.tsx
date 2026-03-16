@@ -51,7 +51,14 @@ export default function App() {
           />
         );
       case 'LIBRARY':
-        return <LibraryView books={stage.books} onSelectBook={(book) => { stage.setSelectedBook(book); stage.setView('READ'); }} />;
+        return (
+          <LibraryView 
+            books={stage.books} 
+            user={stage.user}
+            onSelectBook={(book) => { stage.setSelectedBook(book); stage.setView('READ'); }} 
+            onProfileClick={() => stage.setView(stage.user ? 'DASHBOARD' : 'AUTH')}
+          />
+        );
       case 'DASHBOARD':
         return <DashboardView author={stage.author} onUploadSuccess={(newBook) => stage.setBooks(prev => [newBook, ...prev])} />;
       case 'DATABASE':

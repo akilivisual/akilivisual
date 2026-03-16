@@ -5,9 +5,11 @@ import { Book } from '../../types';
 interface LibraryViewProps {
   books: Book[];
   onSelectBook: (book: Book) => void;
+  user: UserProfile | null;
+  onProfileClick: () => void;
 }
 
-export function LibraryView({ books, onSelectBook }: LibraryViewProps) {
+export function LibraryView({ books, onSelectBook, user, onProfileClick }: LibraryViewProps) {
   const [filter, setFilter] = useState('All');
   const categories = ['All', 'Sci-Fi', 'Fantasy', 'Non-Fiction', 'History', 'Mystery'];
 
@@ -16,8 +18,15 @@ export function LibraryView({ books, onSelectBook }: LibraryViewProps) {
       <header className="sticky top-0 z-20 bg-brand-dark/80 backdrop-blur-md px-4 pt-6 pb-2">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Library</h1>
-          <button className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
-            <User size={20} />
+          <button 
+            onClick={onProfileClick}
+            className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden border border-white/10"
+          >
+            {user ? (
+              <img src={`https://ui-avatars.com/api/?name=${user.name}&background=006699&color=fff`} className="w-full h-full" />
+            ) : (
+              <User size={20} />
+            )}
           </button>
         </div>
 
