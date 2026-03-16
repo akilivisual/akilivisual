@@ -2,24 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 
 export function DatabaseView() {
-  const [activeTab, setActiveTab] = useState<'users' | 'books' | 'interactions'>('users');
+  const [tableName, setTableName] = useState('users');
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchData();
-  }, [activeTab]);
+    fetchData(tableName);
+  }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (targetTable: string) => {
     setIsLoading(true);
+    setError(null);
     try {
       const { getSupabase } = await import('../../lib/supabase');
       const supabase = getSupabase();
-      const { data: result, error } = await supabase.from(activeTab).select('*');
+      const { data: result, error } = await supabase.from(targetTable).select('*').limit(50);
       if (error) throw error;
       setData(result || []);
-    } catch (err) {
+      setTableName(targetTable);
+    } catch (err: any) {
       console.error('Fetch failed:', err);
+      setError(err.message || 'Failed to fetch table');
     } finally {
       setIsLoading(false);
     }
@@ -30,40 +34,22 @@ export function DatabaseView() {
     const supabase = getSupabase();
     let payload = {};
     
-    if (activeTab === 'users') {
+    if (tableName === 'users') {
       payload = { name: 'New User', email: `user_${Date.now()}@example.com`, role: 'reader' };
-    } else if (activeTab === 'books') {
+    } else if (tableName === 'books') {
       payload = { title: 'New Manual Book', author_id: null, pdf_path: 'manual/path' };
-    } else if (activeTab === 'interactions') {
-      payload = { 
-        userId: 'guest_user', 
-        bookTitle: 'System Test', 
-        question: 'How does this work?', 
-        aiResponse: 'This is a manually added test response.' 
-      };
+    } else {
+      // Generic payload attempt
+      payload = { placeholder: 'test' };
     }
 
     try {
-      const { error } = await supabase.from(activeTab).insert(payload);
-      if (error) {
-        // Try snake_case if camelCase fails
-        if (activeTab === 'interactions') {
-          const snakePayload = { 
-            user_id: 'guest_user', 
-            book_title: 'System Test', 
-            question: 'How does this work?', 
-            ai_response: 'This is a manually added test response.' 
-          };
-          const { error: retryError } = await supabase.from(activeTab).insert(snakePayload);
-          if (retryError) throw retryError;
-        } else {
-          throw error;
-        }
-      }
-      fetchData();
+      const { error } = await supabase.from(tableName).insert(payload);
+      if (error) throw error;
+      fetchData(tableName);
     } catch (err: any) {
       console.error('Insert failed:', err);
-      alert(`Failed to add row: ${err.message || 'Check your Supabase RLS policies and table schema.'}`);
+      alert(`Failed to add row: ${err.message}`);
     }
   };
 
@@ -82,17 +68,30 @@ export function DatabaseView() {
         </button>
       </div>
 
-      <div className="flex gap-4 border-b border-white/10">
-        {(['users', 'books', 'interactions'] as const).map(tab => (
-          <button 
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-4 px-2 text-sm font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'text-brand-blue border-b-2 border-brand-blue' : 'text-white/40 hover:text-white'}`}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10">
+        <div className="flex-1 relative">
+          <input 
+            type="text" 
+            placeholder="Table name (e.g. users, books, profiles)" 
+            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white font-medium focus:outline-none focus:border-brand-blue"
+            value={tableName}
+            onChange={(e) => setTableName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && fetchData(tableName)}
+          />
+        </div>
+        <button 
+          onClick={() => fetchData(tableName)}
+          className="px-6 py-2 bg-white/10 text-white rounded-lg font-bold hover:bg-white/20 transition-all"
+        >
+          Check Table
+        </button>
       </div>
+
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+          <p className="text-red-400 text-sm font-medium">Error: {error}</p>
+        </div>
+      )}
 
       <div className="glass-panel rounded-2xl overflow-hidden border border-white/10">
         {isLoading ? (
