@@ -164,7 +164,7 @@ export const supabaseService = {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('books')
-      .select('*, authors(users(name))');
+      .select('*, authors(users!user_id(name))');
     
     if (error) throw error;
 
