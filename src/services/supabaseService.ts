@@ -5,7 +5,10 @@ export const supabaseService = {
   // Auth
   async getCurrentUser() {
     const supabase = getSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    console.log('[Auth] getCurrentUser user:', user?.id);
+    if (userError) console.error('[Auth] getCurrentUser error:', userError);
     if (!user) return null;
 
     // Fetch profile
@@ -15,8 +18,11 @@ export const supabaseService = {
       .eq('id', user.id)
       .maybeSingle();
     
+    console.log('[Auth] Profile fetch result:', profile ? 'Found' : 'Not Found', error || '');
+    
     // If no profile exists, create one from Google metadata
     if (!profile && !error) {
+      console.log('[Auth] Creating new profile for:', user.id);
       const { data: newProfile, error: createError } = await supabase
         .from('users')
         .insert({
@@ -28,7 +34,12 @@ export const supabaseService = {
         .select()
         .single();
       
-      if (!createError) return newProfile as UserProfile;
+      if (createError) {
+        console.error('[Auth] Profile creation failed:', createError);
+      } else {
+        console.log('[Auth] Profile created successfully');
+        return newProfile as UserProfile;
+      }
     }
     
     return profile as UserProfile;

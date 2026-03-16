@@ -22,13 +22,18 @@ export function useStage() {
     const supabase = getSupabase();
 
     const checkAuth = async (sessionUser: any) => {
+      console.log('[Auth] checkAuth triggered. Session User:', sessionUser?.id);
       try {
         if (sessionUser) {
           const profile = await supabaseService.getCurrentUser();
+          console.log('[Auth] Profile retrieved:', profile?.name);
           if (profile) {
             setUser(profile);
             const authorProfile = await supabaseService.getAuthorProfile(profile.id);
-            setAuthor(authorProfile);
+            if (authorProfile) {
+              console.log('[Auth] Author profile found');
+              setAuthor(authorProfile);
+            }
             
             const realBooks = await supabaseService.getBooks();
             if (realBooks.length > 0) {
@@ -36,11 +41,12 @@ export function useStage() {
             }
           }
         } else {
+          console.log('[Auth] No session user, resetting state');
           setUser(null);
           setAuthor(null);
         }
       } catch (err) {
-        console.error('Auth check failed:', err);
+        console.error('[Auth] checkAuth failed:', err);
       }
     };
 
