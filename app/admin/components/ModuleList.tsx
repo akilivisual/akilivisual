@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Reorder, useDragControls } from 'framer-motion'
+import { Reorder, useDragControls, AnimatePresence } from 'framer-motion'
 import type { ModuleWithActors, Actor } from '@/lib/schema/types'
 import { reorderModules } from '@/app/admin/actions/canvas'
+import { ModuleEditPanel } from './ModuleEditPanel'
 
 interface ModuleListProps {
   modules: ModuleWithActors[]
@@ -12,6 +13,7 @@ interface ModuleListProps {
 export function ModuleList({ modules: initial }: ModuleListProps) {
   const [modules, setModules] = useState(initial)
   const [saving, setSaving] = useState(false)
+  const [editing, setEditing] = useState<ModuleWithActors | null>(null)
 
   async function handleReorder(reordered: ModuleWithActors[]) {
     setModules(reordered)
@@ -20,40 +22,75 @@ export function ModuleList({ modules: initial }: ModuleListProps) {
     setSaving(false)
   }
 
+  function handleSaved() {
+    // Refresh module data in editing panel by re-fetching from current list
+    // The page will revalidate via server action — local state stays optimistic
+    if (editing) {
+      const updated = modules.find((m) => m.id === editing.id)
+      if (updated) setEditing(updated)
+    }
+  }
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] tracking-[0.3em] uppercase text-white/30">
-          Modules ({modules.length})
-        </p>
-        {saving && (
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/25 animate-pulse">
-            Saving...
-          </span>
+    <>
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-white/30">
+            Modules ({modules.length})
+          </p>
+          {saving && (
+            <span className="text-[10px] tracking-[0.15em] uppercase text-white/25 animate-pulse">
+              Saving order...
+            </span>
+          )}
+        </div>
+
+        {modules.length === 0 ? (
+          <div className="border border-white/10 border-dashed flex items-center justify-center py-12">
+            <p className="text-[11px] tracking-[0.25em] uppercase text-white/15">No modules</p>
+          </div>
+        ) : (
+          <Reorder.Group
+            axis="y"
+            values={modules}
+            onReorder={handleReorder}
+            className="flex flex-col gap-2"
+          >
+            {modules.map((mod, i) => (
+              <DraggableModule
+                key={mod.id}
+                module={mod}
+                index={i}
+                onEdit={() => setEditing(mod)}
+              />
+            ))}
+          </Reorder.Group>
         )}
       </div>
 
-      {modules.length === 0 ? (
-        <div className="border border-white/10 border-dashed flex items-center justify-center py-12">
-          <p className="text-[11px] tracking-[0.25em] uppercase text-white/15">No modules</p>
-        </div>
-      ) : (
-        <Reorder.Group
-          axis="y"
-          values={modules}
-          onReorder={handleReorder}
-          className="flex flex-col gap-2"
-        >
-          {modules.map((mod, i) => (
-            <DraggableModule key={mod.id} module={mod} index={i} />
-          ))}
-        </Reorder.Group>
-      )}
-    </div>
+      {/* Edit panel */}
+      <AnimatePresence>
+        {editing && (
+          <ModuleEditPanel
+            module={editing}
+            onClose={() => setEditing(null)}
+            onSaved={handleSaved}
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
-function DraggableModule({ module, index }: { module: ModuleWithActors; index: number }) {
+function DraggableModule({
+  module,
+  index,
+  onEdit,
+}: {
+  module: ModuleWithActors
+  index: number
+  onEdit: () => void
+}) {
   const controls = useDragControls()
 
   return (
@@ -71,7 +108,7 @@ function DraggableModule({ module, index }: { module: ModuleWithActors; index: n
       }}
       transition={{ duration: 0 }}
     >
-      {/* Module header */}
+      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-4">
           {/* Drag handle */}
@@ -101,12 +138,20 @@ function DraggableModule({ module, index }: { module: ModuleWithActors; index: n
           </div>
         </div>
 
-        <span className="text-[10px] tracking-[0.15em] uppercase text-white/25">
-          {module.actors.length} {module.actors.length === 1 ? 'actor' : 'actors'}
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/25">
+            {module.actors.length} {module.actors.length === 1 ? 'actor' : 'actors'}
+          </span>
+          <button
+            onClick={onEdit}
+            className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/35 hover:text-white hover:border-white/45 transition-colors"
+          >
+            Edit
+          </button>
+        </div>
       </div>
 
-      {/* Actors */}
+      {/* Actor rows */}
       {module.actors.length > 0 && (
         <div className="divide-y divide-white/[0.04]">
           {module.actors.map((actor, i) => (
