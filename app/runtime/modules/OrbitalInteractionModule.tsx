@@ -16,20 +16,34 @@ export function OrbitalInteractionModule({ module }: OrbitalInteractionModulePro
   return (
     <div className="absolute inset-0 pointer-events-none">
       {actors.map((actor, i) => {
-        const delay = (resolved.delay ?? 0) + i * 0.4
+        const delay = (resolved.delay ?? 0) + i * 0.6
+
+        // Actor-level opacity from transform (default visible)
+        const baseOpacity = (actor.transform?.opacity as number) ?? 0.6
+
+        // Scale pulse from motion profile
+        const scaleMin = resolved.scale_min ?? 0.95
+        const scaleMax = resolved.scale_max ?? 1.05
+
+        // Opacity pulse: breathe around the actor's base opacity
+        const opacityMin = baseOpacity * 0.6
+        const opacityMax = baseOpacity
 
         return (
           <motion.div
             key={actor.id}
             className="absolute"
-            style={getOrbPosition(actor.transform?.x, actor.transform?.y)}
-            initial={{ opacity: 0, scale: 0.8 }}
+            style={getOrbPosition(
+              (actor.transform?.x as number | undefined),
+              (actor.transform?.y as number | undefined)
+            )}
+            initial={{ opacity: 0, scale: 0.85 }}
             animate={{
-              opacity: [resolved.opacity_min, resolved.opacity_max, resolved.opacity_min],
-              scale: [resolved.scale_min, resolved.scale_max, resolved.scale_min],
+              opacity: [opacityMin, opacityMax, opacityMin],
+              scale: [scaleMin, scaleMax, scaleMin],
             }}
             transition={{
-              duration: (resolved.duration ?? 2.5) / (resolved.pulse_speed ?? 1),
+              duration: (resolved.duration ?? 3.5) / (resolved.pulse_speed ?? 1),
               delay,
               repeat: Infinity,
               ease: 'easeInOut',
