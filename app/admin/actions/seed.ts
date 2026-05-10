@@ -1,13 +1,13 @@
 'use server'
 
-import { getSupabase } from '@/lib/supabase/client'
+import { getAdminSupabase } from '@/lib/supabase/admin-client'
 
 export type SeedResult =
   | { ok: true; canvasSlug: string; message: string }
   | { ok: false; error: string }
 
 export async function seedCanvas0001(): Promise<SeedResult> {
-  const supabase = getSupabase()
+  const supabase = getAdminSupabase()
 
   // ── Guard: skip if already exists ──────────────────────────────
   const { data: existing } = await supabase

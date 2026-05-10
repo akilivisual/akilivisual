@@ -1,4 +1,4 @@
-import { getSupabase } from './client'
+import { getAdminSupabase as getSupabase } from './admin-client'
 import type { Canvas, Module, Actor, Persona, MediaAsset, CanvasWithModules, ModuleWithActors } from '@/lib/schema/types'
 
 export async function adminFetchAllCanvases(): Promise<CanvasWithModules[]> {
