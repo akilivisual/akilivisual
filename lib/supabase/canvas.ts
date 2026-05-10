@@ -1,7 +1,9 @@
-import { supabase } from './client'
+import { getSupabase } from './client'
 import type { Canvas, Module, Actor, CanvasWithModules, ModuleWithActors } from '@/lib/schema/types'
 
 export async function fetchCanvasBySlug(slug: string): Promise<CanvasWithModules | null> {
+  const supabase = getSupabase()
+
   const { data: canvas, error: canvasError } = await supabase
     .from('canvases')
     .select('*')
@@ -36,6 +38,8 @@ export async function fetchCanvasBySlug(slug: string): Promise<CanvasWithModules
 }
 
 export async function fetchCanvasesByProject(projectSlug: string): Promise<CanvasWithModules[]> {
+  const supabase = getSupabase()
+
   const { data: project } = await supabase
     .from('projects')
     .select('id')
