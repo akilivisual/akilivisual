@@ -76,6 +76,33 @@ export async function addActor(
   return { ok: true, id: data.id }
 }
 
+export async function addModule(
+  canvasId: string,
+  type: string,
+  orderIndex: number
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const supabase = getAdminSupabase()
+
+  const { data, error } = await supabase
+    .from('modules')
+    .insert({
+      canvas_id: canvasId,
+      module_type: type,
+      name: `New ${type}`,
+      depth_layer: 'midground',
+      order_index: orderIndex,
+      props: {},
+      motion_profile: {},
+      resonance_profile: {},
+    })
+    .select('id')
+    .single()
+
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin/canvas/[slug]', 'page')
+  return { ok: true, id: data.id }
+}
+
 export async function deleteActor(id: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = getAdminSupabase()
   const { error } = await supabase.from('actors').delete().eq('id', id)

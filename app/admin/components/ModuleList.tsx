@@ -4,16 +4,48 @@ import { useState } from 'react'
 import { Reorder, useDragControls, AnimatePresence } from 'framer-motion'
 import type { ModuleWithActors, Actor } from '@/lib/schema/types'
 import { reorderModules } from '@/app/admin/actions/canvas'
+import { addModule } from '@/app/admin/actions/modules'
 import { ModuleEditPanel } from './ModuleEditPanel'
+
+const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'text_block', 'media', 'custom']
 
 interface ModuleListProps {
   modules: ModuleWithActors[]
+  canvasId: string
 }
 
-export function ModuleList({ modules: initial }: ModuleListProps) {
+export function ModuleList({ modules: initial, canvasId }: ModuleListProps) {
   const [modules, setModules] = useState(initial)
   const [saving, setSaving] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<ModuleWithActors | null>(null)
+
+  async function handleAddModule(type: string) {
+    setAdding(true)
+    const result = await addModule(canvasId, type, modules.length)
+    setAdding(false)
+    if (result.ok) {
+      // Optimistically add a placeholder — page revalidation fills real data
+      const placeholder: ModuleWithActors = {
+        id: result.id!,
+        canvas_id: canvasId,
+        module_type: type,
+        name: `New ${type}`,
+        depth_layer: 'midground',
+        order_index: modules.length,
+        props: {},
+        motion_profile: {},
+        interaction_profile: {},
+        resonance_profile: {},
+        metadata: {},
+        position: {},
+        actors: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      setModules((prev) => [...prev, placeholder])
+    }
+  }
 
   async function handleReorder(reordered: ModuleWithActors[]) {
     setModules(reordered)
@@ -66,6 +98,24 @@ export function ModuleList({ modules: initial }: ModuleListProps) {
             ))}
           </Reorder.Group>
         )}
+        {/* Add Module */}
+        <div className="border border-white/[0.08] border-dashed mt-3">
+          <p className="text-[10px] tracking-[0.2em] uppercase text-white/20 px-5 pt-4 pb-2">
+            Add Module
+          </p>
+          <div className="flex flex-wrap gap-2 px-5 pb-4">
+            {MODULE_TYPES.map((type) => (
+              <button
+                key={type}
+                onClick={() => handleAddModule(type)}
+                disabled={adding}
+                className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors disabled:opacity-30"
+              >
+                + {type}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Edit panel */}

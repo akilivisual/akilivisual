@@ -28,6 +28,17 @@ const DEPTH_LAYERS = ['background', 'midground', 'foreground']
 const EASING_TYPES = ['easeInOut', 'easeIn', 'easeOut', 'linear', 'spring']
 const ACTOR_TYPES = ['logo', 'orb', 'text', 'image', 'particle_field']
 
+function defaultVisualSchema(type: string): Record<string, unknown> {
+  switch (type) {
+    case 'orb':          return { color: '#ffffff', size: 200, blur: 60 }
+    case 'text':         return { text: 'Text', color: '#ffffff', font_size: 16, font_weight: '300' }
+    case 'image':        return { src: '', size: 200 }
+    case 'logo':         return { text: 'AV', size: 120, color: '#ffffff', font_size: 13, font_weight: '300' }
+    case 'particle_field': return { color: '#ffffff' }
+    default:             return {}
+  }
+}
+
 // ── Panel ────────────────────────────────────────────────────────────
 
 export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
@@ -472,7 +483,11 @@ function ActorEditor({
                 <Select
                   value={actor.actor_type}
                   options={ACTOR_TYPES}
-                  onChange={(v) => setActor({ ...actor, actor_type: v })}
+                  onChange={(v) => setActor({
+                    ...actor,
+                    actor_type: v,
+                    visual_schema: defaultVisualSchema(v),
+                  })}
                 />
               </Field>
 

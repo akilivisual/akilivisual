@@ -71,7 +71,7 @@ export default async function CanvasInspector({ params }: Props) {
       </div>
 
       {/* Draggable module list */}
-      <ModuleList modules={canvas.modules} />
+      <ModuleList modules={canvas.modules} canvasId={canvas.id} />
 
       {/* Resonance profile */}
       {canvas.resonance_profile && Object.keys(canvas.resonance_profile).length > 0 && (
