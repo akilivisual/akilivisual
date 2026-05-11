@@ -5,6 +5,7 @@ import { FocusModule } from './modules/FocusModule'
 import { OrbitalInteractionModule } from './modules/OrbitalInteractionModule'
 import { AtmosphereModule } from './modules/AtmosphereModule'
 import { EmbedModule } from './modules/EmbedModule'
+import { ActorRenderer } from './ActorRenderer'
 
 interface ModuleRendererProps {
   module: ModuleWithActors
@@ -21,6 +22,14 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
     case 'embed':
       return <EmbedModule module={module} />
     default:
-      return null
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            {module.actors.map((actor) => (
+              <ActorRenderer key={actor.id} actor={actor} />
+            ))}
+          </div>
+        </div>
+      )
   }
 }

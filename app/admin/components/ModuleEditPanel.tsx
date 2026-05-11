@@ -712,7 +712,27 @@ function ActorEditor({
               {actor.actor_type === 'image' && (
                 <div className="flex flex-col gap-4">
                   <Field label="Image">
-                    <MediaPickerField src={(vs.src as string) ?? ''} onSrcChange={(url) => setVS('src', url)} />
+                    <MediaPickerField
+                      src={(vs.src as string) ?? ''}
+                      onSrcChange={(url) => setVS('src', url)}
+                      onPick={async (url) => {
+                        const updatedActor = { ...actor, visual_schema: { ...vs, src: url } }
+                        setActor(updatedActor)
+                        setSaving(true)
+                        setSaveError('')
+                        try {
+                          const result = await updateActor(updatedActor.id, {
+                            visual_schema: updatedActor.visual_schema as Record<string, unknown>,
+                          })
+                          if (result.ok) onActorSaved(updatedActor)
+                          else setSaveError(result.error ?? 'Save failed')
+                        } catch (e) {
+                          setSaveError(e instanceof Error ? e.message : 'Save failed')
+                        } finally {
+                          setSaving(false)
+                        }
+                      }}
+                    />
                   </Field>
                   <Field label="Size (px)">
                     <NumberInput value={(vs.size as number) ?? 200} min={20} max={1200} onChange={(v) => setVS('size', v)} />
@@ -856,13 +876,26 @@ function ActorEditor({
 
 // ── Media Picker ─────────────────────────────────────────────────────
 
-function MediaPickerField({ src, onSrcChange }: { src: string; onSrcChange: (url: string) => void }) {
+function MediaPickerField({
+  src,
+  onSrcChange,
+  onPick,
+}: {
+  src: string
+  onSrcChange: (url: string) => void
+  onPick?: (url: string) => void
+}) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [showLibrary, setShowLibrary] = useState(false)
   const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
   const [loadingLibrary, setLoadingLibrary] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function pick(url: string) {
+    onSrcChange(url)
+    onPick?.(url)
+  }
 
   async function handleUpload(file: File) {
     setUploading(true)
@@ -875,7 +908,7 @@ function MediaPickerField({ src, onSrcChange }: { src: string; onSrcChange: (url
       if (error) { setUploadError(error.message); return }
       const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
       await createMediaAsset(publicUrl, 'image', file.name.replace(/\.[^.]+$/, ''), path)
-      onSrcChange(publicUrl)
+      pick(publicUrl)
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
@@ -940,7 +973,7 @@ function MediaPickerField({ src, onSrcChange }: { src: string; onSrcChange: (url
               {libraryAssets.map((a) => (
                 <button
                   key={a.id}
-                  onClick={() => { onSrcChange(a.url); setShowLibrary(false) }}
+                  onClick={() => { pick(a.url); setShowLibrary(false) }}
                   className="border border-white/10 hover:border-white/40 transition-colors overflow-hidden group relative"
                   title={a.title ?? a.url}
                 >
