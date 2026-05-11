@@ -56,21 +56,26 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
   async function save() {
     setSaving(true)
     setStatus('')
-    const result = await updateModule(module.id, {
-      name: module.name ?? undefined,
-      depth_layer: module.depth_layer,
-      position: (module.position ?? {}) as Record<string, unknown>,
-      motion_profile: (module.motion_profile ?? {}) as Record<string, unknown>,
-      resonance_profile: (module.resonance_profile ?? {}) as Record<string, unknown>,
-      props: (module.props ?? {}) as Record<string, unknown>,
-    })
-    setSaving(false)
-    if (result.ok) {
-      setStatus('Saved')
-      onSaved()
-      setTimeout(() => setStatus(''), 2000)
-    } else {
-      setStatus(result.error ?? 'Error')
+    try {
+      const result = await updateModule(module.id, {
+        name: module.name ?? undefined,
+        depth_layer: module.depth_layer,
+        position: (module.position ?? {}) as Record<string, unknown>,
+        motion_profile: (module.motion_profile ?? {}) as Record<string, unknown>,
+        resonance_profile: (module.resonance_profile ?? {}) as Record<string, unknown>,
+        props: (module.props ?? {}) as Record<string, unknown>,
+      })
+      if (result.ok) {
+        setStatus('Saved')
+        onSaved()
+        setTimeout(() => setStatus(''), 2000)
+      } else {
+        setStatus(result.error ?? 'Error')
+      }
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -569,18 +574,23 @@ function ActorEditor({
   async function save() {
     setSaving(true)
     setSaveError('')
-    const result = await updateActor(actor.id, {
-      name: actor.name ?? undefined,
-      actor_type: actor.actor_type,
-      transform: (actor.transform ?? {}) as Record<string, unknown>,
-      visual_schema: (actor.visual_schema ?? {}) as Record<string, unknown>,
-      motion_schema: (actor.motion_schema ?? {}) as Record<string, unknown>,
-    })
-    setSaving(false)
-    if (result.ok) {
-      onSaved()
-    } else {
-      setSaveError(result.error ?? 'Save failed')
+    try {
+      const result = await updateActor(actor.id, {
+        name: actor.name ?? undefined,
+        actor_type: actor.actor_type,
+        transform: (actor.transform ?? {}) as Record<string, unknown>,
+        visual_schema: (actor.visual_schema ?? {}) as Record<string, unknown>,
+        motion_schema: (actor.motion_schema ?? {}) as Record<string, unknown>,
+      })
+      if (result.ok) {
+        onSaved()
+      } else {
+        setSaveError(result.error ?? 'Save failed')
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSaving(false)
     }
   }
 
