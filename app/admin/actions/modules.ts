@@ -123,3 +123,11 @@ export async function deleteActor(id: string): Promise<{ ok: boolean; error?: st
   revalidatePath('/admin/canvas/[slug]', 'page')
   return { ok: true }
 }
+
+export async function deleteModule(id: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { error } = await supabase.from('modules').delete().eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin/canvas/[slug]', 'page')
+  return { ok: true }
+}

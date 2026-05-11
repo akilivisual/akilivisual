@@ -447,15 +447,40 @@ function ActorsTab({
   onSaved: () => void
 }) {
   const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function handleAdd(type: string) {
     setAdding(true)
-    const result = await addActor(module.id, module.actors.length, type)
-    setAdding(false)
-    if (result.ok) {
-      onSaved()
-      setExpandedId(result.id ?? null)
+    setAddError('')
+    try {
+      const result = await addActor(module.id, module.actors.length, type)
+      if (result.ok && result.id) {
+        const newActor: Actor = {
+          id: result.id,
+          module_id: module.id,
+          actor_type: type,
+          name: `New ${type}`,
+          order_index: module.actors.length,
+          transform: { opacity: 1 },
+          visual_schema: defaultVisualSchema(type),
+          motion_schema: {},
+          interaction_schema: {},
+          ai_schema: {},
+          metadata: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        onChange({ ...module, actors: [...module.actors, newActor] })
+        setExpandedId(result.id)
+        onSaved()
+      } else {
+        setAddError(result.error ?? 'Failed to add actor')
+      }
+    } catch {
+      setAddError('Unexpected error')
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -500,6 +525,9 @@ function ActorsTab({
             </button>
           ))}
         </div>
+        {addError && (
+          <p className="text-[10px] text-red-400/70 px-4 pb-3">{addError}</p>
+        )}
       </div>
     </div>
   )
@@ -563,7 +591,7 @@ function ActorEditor({
         </button>
         <button
           onClick={onDelete}
-          className="text-[10px] text-white/20 hover:text-red-400/60 transition-colors px-2"
+          className="text-[10px] text-white/35 hover:text-red-400/70 transition-colors px-2"
         >
           ✕
         </button>

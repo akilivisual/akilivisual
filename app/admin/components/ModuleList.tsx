@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Reorder, useDragControls, AnimatePresence } from 'framer-motion'
 import type { ModuleWithActors, Actor } from '@/lib/schema/types'
 import { reorderModules } from '@/app/admin/actions/canvas'
-import { addModule } from '@/app/admin/actions/modules'
+import { addModule, deleteModule } from '@/app/admin/actions/modules'
 import { ModuleEditPanel } from './ModuleEditPanel'
 
 const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'text_block', 'media', 'custom']
@@ -47,6 +47,12 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
       }
       setModules((prev) => [...prev, placeholder])
     }
+  }
+
+  async function handleDelete(moduleId: string) {
+    setModules((prev) => prev.filter((m) => m.id !== moduleId))
+    await deleteModule(moduleId)
+    onSaved?.()
   }
 
   async function handleReorder(reordered: ModuleWithActors[]) {
@@ -95,6 +101,7 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
                 module={mod}
                 index={i}
                 onEdit={() => setEditing(mod)}
+                onDelete={() => handleDelete(mod.id)}
               />
             ))}
           </Reorder.Group>
@@ -137,12 +144,15 @@ function DraggableModule({
   module,
   index,
   onEdit,
+  onDelete,
 }: {
   module: ModuleWithActors
   index: number
   onEdit: () => void
+  onDelete: () => void
 }) {
   const controls = useDragControls()
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   return (
     <Reorder.Item
@@ -189,7 +199,7 @@ function DraggableModule({
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="text-[10px] tracking-[0.15em] uppercase text-white/25">
             {module.actors.length} {module.actors.length === 1 ? 'actor' : 'actors'}
           </span>
@@ -198,6 +208,23 @@ function DraggableModule({
             className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/35 hover:text-white hover:border-white/45 transition-colors"
           >
             Edit
+          </button>
+          <button
+            onClick={() => {
+              if (confirmDelete) {
+                onDelete()
+              } else {
+                setConfirmDelete(true)
+                setTimeout(() => setConfirmDelete(false), 3000)
+              }
+            }}
+            className={`py-1.5 px-2.5 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
+              confirmDelete
+                ? 'border-red-500/50 text-red-400/80'
+                : 'border-white/10 text-white/20 hover:text-white/50 hover:border-white/25'
+            }`}
+          >
+            {confirmDelete ? 'Sure?' : '✕'}
           </button>
         </div>
       </div>

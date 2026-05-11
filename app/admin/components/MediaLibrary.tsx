@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import type { MediaAsset } from '@/lib/schema/types'
 import { getSupabase } from '@/lib/supabase/client'
 import { createMediaAsset, deleteMediaAsset } from '@/app/admin/actions/media'
@@ -159,6 +159,7 @@ export function MediaLibrary({ assets: initial }: MediaLibraryProps) {
 function AssetCard({ asset, onDelete }: { asset: MediaAsset; onDelete: (a: MediaAsset) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isPortrait, setIsPortrait] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   function copyUrl() {
@@ -177,9 +178,14 @@ function AssetCard({ asset, onDelete }: { asset: MediaAsset; onDelete: (a: Media
     }
   }
 
+  const cardStyle: React.CSSProperties = isPortrait
+    ? { width: 'fit-content', maxWidth: '100%', marginLeft: 'auto', marginRight: 'auto' }
+    : {}
+
   return (
     <div
       className="border border-white/10 bg-white/[0.02]"
+      style={cardStyle}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -189,20 +195,28 @@ function AssetCard({ asset, onDelete }: { asset: MediaAsset; onDelete: (a: Media
         <img
           src={asset.url}
           alt={asset.title ?? ''}
+          onLoad={(e) => {
+            const img = e.currentTarget
+            if (img.naturalHeight > img.naturalWidth) setIsPortrait(true)
+          }}
           style={{ display: 'block', width: '100%', height: 'auto' }}
         />
       )}
 
-      {/* Video — 16:9 frame, plays on hover */}
+      {/* Video — natural aspect ratio, plays on hover */}
       {asset.asset_type === 'video' && (
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#000', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', width: '100%', background: '#000', overflow: 'hidden' }}>
           <video
             ref={videoRef}
             src={asset.url}
             muted
             loop
             playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget
+              if (v.videoHeight > v.videoWidth) setIsPortrait(true)
+            }}
+            style={{ width: '100%', height: 'auto', objectFit: 'contain', display: 'block' }}
           />
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
             <div className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center">
