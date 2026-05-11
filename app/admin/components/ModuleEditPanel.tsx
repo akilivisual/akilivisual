@@ -314,6 +314,107 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
     )
   }
 
+  // Embed-specific editor
+  if (module.module_type === 'embed') {
+    const embedType = (props.embed_type as string) ?? 'iframe'
+    const EMBED_TYPES = ['iframe', 'spline', 'html', 'json']
+
+    function resetContentFields(newType: string) {
+      const base = { embed_type: newType, width: props.width, height: props.height, opacity: props.opacity, border_radius: props.border_radius }
+      if (newType === 'iframe') return { ...base, url: '', allow_scripts: false }
+      if (newType === 'spline') return { ...base, url: '', hide_ui: true }
+      if (newType === 'html') return { ...base, html: '' }
+      if (newType === 'json') return { ...base, json_data: '', max_height: 400 }
+      return base
+    }
+
+    return (
+      <div className="flex flex-col gap-6">
+        <Field label="Embed Type">
+          <Select
+            value={embedType}
+            options={EMBED_TYPES}
+            onChange={(v) => onChange({ ...module, props: resetContentFields(v) })}
+          />
+        </Field>
+
+        {embedType === 'iframe' && (
+          <>
+            <Field label="URL">
+              <Input value={(props.url as string) ?? ''} onChange={(v) => set('url', v)} placeholder="https://..." />
+            </Field>
+            <Field label="Allow Scripts">
+              <Toggle value={(props.allow_scripts as boolean) ?? false} onChange={(v) => set('allow_scripts', v)} />
+            </Field>
+          </>
+        )}
+
+        {embedType === 'spline' && (
+          <>
+            <Field label="Spline URL">
+              <Input value={(props.url as string) ?? ''} onChange={(v) => set('url', v)} placeholder="https://my.spline.design/..." />
+            </Field>
+            <Field label="Hide UI">
+              <Toggle value={(props.hide_ui as boolean) ?? true} onChange={(v) => set('hide_ui', v)} />
+            </Field>
+          </>
+        )}
+
+        {embedType === 'html' && (
+          <Field label="HTML Code">
+            <textarea
+              spellCheck={false}
+              className="w-full h-48 bg-white/[0.03] border border-white/10 text-[11px] text-white/60 font-mono p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
+              value={(props.html as string) ?? ''}
+              onChange={(e) => set('html', e.target.value)}
+              placeholder="<div style='color:white'>Hello</div>"
+            />
+          </Field>
+        )}
+
+        {embedType === 'json' && (
+          <>
+            <Field label="JSON Data">
+              <textarea
+                spellCheck={false}
+                className="w-full h-40 bg-white/[0.03] border border-white/10 text-[11px] text-white/60 font-mono p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
+                value={(props.json_data as string) ?? ''}
+                onChange={(e) => set('json_data', e.target.value)}
+                placeholder='{"key": "value"}'
+              />
+            </Field>
+            <Field label="Max Height (px)">
+              <NumberInput value={(props.max_height as number) ?? 400} min={100} max={2000} onChange={(v) => set('max_height', v)} />
+            </Field>
+          </>
+        )}
+
+        <Divider label="Sizing" />
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Height (px)">
+            <NumberInput value={(props.height as number) ?? 500} min={50} max={2000} onChange={(v) => set('height', v)} />
+          </Field>
+          <Field label="Width (px, 0=full)">
+            <NumberInput
+              value={(props.width as number) ?? 0}
+              min={0} max={3840}
+              onChange={(v) => set('width', v === 0 ? null : v)}
+            />
+          </Field>
+        </div>
+
+        <Field label="Opacity">
+          <SliderInput value={(props.opacity as number) ?? 1} min={0} max={1} step={0.01} onChange={(v) => set('opacity', v)} />
+        </Field>
+
+        <Field label="Border Radius (px)">
+          <NumberInput value={(props.border_radius as number) ?? 0} min={0} max={100} onChange={(v) => set('border_radius', v)} />
+        </Field>
+      </div>
+    )
+  }
+
   // Generic JSON editor for other module types
   return (
     <div className="flex flex-col gap-3">

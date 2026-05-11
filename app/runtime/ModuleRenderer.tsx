@@ -4,6 +4,7 @@ import type { ModuleWithActors } from '@/lib/schema/types'
 import { FocusModule } from './modules/FocusModule'
 import { OrbitalInteractionModule } from './modules/OrbitalInteractionModule'
 import { AtmosphereModule } from './modules/AtmosphereModule'
+import { EmbedModule } from './modules/EmbedModule'
 
 interface ModuleRendererProps {
   module: ModuleWithActors
@@ -17,6 +18,8 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
       return <OrbitalInteractionModule module={module} />
     case 'atmosphere':
       return <AtmosphereModule module={module} />
+    case 'embed':
+      return <EmbedModule module={module} />
     default:
       return null
   }

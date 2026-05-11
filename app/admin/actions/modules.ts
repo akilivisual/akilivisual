@@ -76,6 +76,13 @@ export async function addActor(
   return { ok: true, id: data.id }
 }
 
+function defaultModuleProps(type: string): Record<string, unknown> {
+  if (type === 'embed') {
+    return { embed_type: 'iframe', url: '', width: null, height: 500, opacity: 1, border_radius: 0 }
+  }
+  return {}
+}
+
 export async function addModule(
   canvasId: string,
   type: string,
@@ -91,7 +98,7 @@ export async function addModule(
       name: `New ${type}`,
       depth_layer: 'midground',
       order_index: orderIndex,
-      props: {},
+      props: defaultModuleProps(type),
       motion_profile: {},
       resonance_profile: {},
     })

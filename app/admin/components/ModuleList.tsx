@@ -7,7 +7,7 @@ import { reorderModules } from '@/app/admin/actions/canvas'
 import { addModule } from '@/app/admin/actions/modules'
 import { ModuleEditPanel } from './ModuleEditPanel'
 
-const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'text_block', 'media', 'custom']
+const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'text_block', 'media', 'custom']
 
 interface ModuleListProps {
   modules: ModuleWithActors[]

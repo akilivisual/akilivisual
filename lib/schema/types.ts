@@ -134,6 +134,7 @@ export type ModuleType =
   | 'focus'
   | 'orbital_interaction'
   | 'atmosphere'
+  | 'embed'
   | string
 
 export type ActorType =
