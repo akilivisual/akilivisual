@@ -2,6 +2,15 @@
 
 import { getAdminSupabase } from '@/lib/supabase/admin-client'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+export async function deleteCanvas(id: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { error } = await supabase.from('canvases').delete().eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin')
+  redirect('/admin')
+}
 
 export async function reorderModules(
   moduleIds: string[]

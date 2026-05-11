@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { adminFetchCanvas } from '@/lib/supabase/admin'
 import { ModuleList } from '@/app/admin/components/ModuleList'
+import { DeleteCanvasButton } from '@/app/admin/components/DeleteCanvasButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,13 +46,16 @@ export default async function CanvasInspector({ params }: Props) {
             <p className="text-[11px] tracking-[0.1em] text-white/30 mt-1">{canvas.slug}</p>
           </div>
 
-          <Link
-            href="/"
-            target="_blank"
-            className="px-4 py-2 border border-white/15 text-[11px] tracking-[0.2em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors"
-          >
-            Preview →
-          </Link>
+          <div className="flex items-center gap-3">
+            <DeleteCanvasButton canvasId={canvas.id} canvasTitle={canvas.title} />
+            <Link
+              href="/"
+              target="_blank"
+              className="px-4 py-2 border border-white/15 text-[11px] tracking-[0.2em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors"
+            >
+              Preview →
+            </Link>
+          </div>
         </div>
       </div>
 
