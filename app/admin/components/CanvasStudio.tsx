@@ -18,7 +18,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
     <div className="flex h-screen overflow-hidden">
 
       {/* ── Left panel — controls ───────────────────────────── */}
-      <div className="w-[460px] shrink-0 border-r border-white/10 overflow-y-auto flex flex-col">
+      <div className="w-[460px] shrink-0 border-r border-white/10 overflow-y-auto flex flex-col min-h-0">
 
         {/* Header */}
         <div className="px-8 pt-8 pb-6 border-b border-white/10 shrink-0">
@@ -55,7 +55,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
         </div>
 
         {/* Module list */}
-        <div className="px-8 py-6 flex-1">
+        <div className="py-5 flex-1">
           <ModuleList
             modules={canvas.modules}
             canvasId={canvas.id}
