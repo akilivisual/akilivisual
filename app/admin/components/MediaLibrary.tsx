@@ -140,17 +140,15 @@ export function MediaLibrary({ assets: initial }: MediaLibraryProps) {
         </div>
       </div>
 
-      {/* Masonry grid — natural aspect ratios */}
+      {/* Grid — natural aspect ratios, items aligned to top */}
       {assets.length === 0 ? (
         <div className="border border-white/10 border-dashed flex items-center justify-center py-24">
           <p className="text-[11px] tracking-[0.25em] uppercase text-white/15">No media yet</p>
         </div>
       ) : (
-        <div className="columns-2 lg:columns-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 items-start">
           {assets.map((asset) => (
-            <div key={asset.id} className="break-inside-avoid mb-3">
-              <AssetCard asset={asset} onDelete={handleDelete} />
-            </div>
+            <AssetCard key={asset.id} asset={asset} onDelete={handleDelete} />
           ))}
         </div>
       )}
@@ -181,31 +179,32 @@ function AssetCard({ asset, onDelete }: { asset: MediaAsset; onDelete: (a: Media
 
   return (
     <div
-      className="border border-white/10 bg-white/[0.02] overflow-hidden"
+      className="border border-white/10 bg-white/[0.02]"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Preview — images at natural aspect ratio */}
+      {/* Image — full natural aspect ratio, no cropping */}
       {asset.asset_type === 'image' && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={asset.url}
           alt={asset.title ?? ''}
-          className="w-full h-auto block"
+          style={{ display: 'block', width: '100%', height: 'auto' }}
         />
       )}
 
+      {/* Video — 16:9 frame, plays on hover */}
       {asset.asset_type === 'video' && (
-        <div className="relative w-full aspect-video bg-black">
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#000', overflow: 'hidden' }}>
           <video
             ref={videoRef}
             src={asset.url}
             muted
             loop
             playsInline
-            className="w-full h-full object-contain"
+            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
           />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
             <div className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center">
               <span className="text-white/30 text-xs ml-0.5">▶</span>
             </div>
@@ -213,6 +212,7 @@ function AssetCard({ asset, onDelete }: { asset: MediaAsset; onDelete: (a: Media
         </div>
       )}
 
+      {/* Audio — waveform + player */}
       {asset.asset_type === 'audio' && (
         <div className="w-full bg-black px-6 py-6 flex flex-col items-center gap-4">
           <div className="flex items-end gap-1 h-10">
@@ -228,6 +228,7 @@ function AssetCard({ asset, onDelete }: { asset: MediaAsset; onDelete: (a: Media
         </div>
       )}
 
+      {/* Link / unknown */}
       {(asset.asset_type === 'link' || !['image', 'video', 'audio'].includes(asset.asset_type)) && (
         <div className="w-full h-32 bg-black flex flex-col items-center justify-center gap-2 px-4">
           <span className="text-3xl text-white/15">↗</span>
