@@ -61,6 +61,12 @@ export async function addActor(
       ? { text: 'Text', color: '#ffffff', font_size: 16 }
       : type === 'image'
       ? { src: '', size: 200 }
+      : type === 'media'
+      ? { src: '', media_type: 'video', width: 400, height: 300, autoplay: true, loop: true }
+      : type === 'embed'
+      ? { embed_type: 'iframe', url: '', width: 400, height: 300 }
+      : type === 'custom'
+      ? {}
       : { text: 'AV', size: 120, color: '#ffffff' },
     motion_schema: {},
   }

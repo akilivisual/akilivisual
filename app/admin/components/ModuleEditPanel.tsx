@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { ModuleWithActors, Actor } from '@/lib/schema/types'
+import type { ModuleWithActors, Actor, VisualSchema } from '@/lib/schema/types'
 import { updateModule, updateActor, addActor, deleteActor } from '@/app/admin/actions/modules'
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const DEPTH_LAYERS = ['background', 'midground', 'foreground']
 const EASING_TYPES = ['easeInOut', 'easeIn', 'easeOut', 'linear', 'spring']
-const ACTOR_TYPES = ['logo', 'orb', 'text', 'image', 'particle_field']
+const ACTOR_TYPES = ['logo', 'orb', 'text', 'image', 'media', 'embed', 'particle_field', 'custom']
 
 function defaultVisualSchema(type: string): Record<string, unknown> {
   switch (type) {
@@ -35,6 +35,9 @@ function defaultVisualSchema(type: string): Record<string, unknown> {
     case 'image':        return { src: '', size: 200 }
     case 'logo':         return { text: 'AV', size: 120, color: '#ffffff', font_size: 13, font_weight: '300' }
     case 'particle_field': return { color: '#ffffff' }
+    case 'media':        return { src: '', media_type: 'video', width: 400, height: 300, autoplay: true, loop: true }
+    case 'embed':        return { embed_type: 'iframe', url: '', width: 400, height: 300 }
+    case 'custom':       return {}
     default:             return {}
   }
 }
@@ -671,6 +674,102 @@ function ActorEditor({
                   <Field label="Color">
                     <ColorInput value={(vs.color as string) ?? '#ffffff'} onChange={(v) => setVS('color', v)} />
                   </Field>
+                </div>
+              )}
+
+              {actor.actor_type === 'media' && (
+                <div className="flex flex-col gap-4">
+                  <Field label="Media Type">
+                    <Select
+                      value={(vs.media_type as string) ?? 'video'}
+                      options={['video', 'gif', 'audio']}
+                      onChange={(v) => setVS('media_type', v)}
+                    />
+                  </Field>
+                  <Field label="Source URL">
+                    <Input value={(vs.src as string) ?? ''} onChange={(v) => setVS('src', v)} placeholder="https://..." />
+                  </Field>
+                  {(vs.media_type as string) !== 'audio' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Width (px)">
+                        <NumberInput value={(vs.width as number) ?? 400} min={50} max={3840} onChange={(v) => setVS('width', v)} />
+                      </Field>
+                      <Field label="Height (px)">
+                        <NumberInput value={(vs.height as number) ?? 300} min={50} max={2160} onChange={(v) => setVS('height', v)} />
+                      </Field>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Autoplay">
+                      <Toggle value={(vs.autoplay as boolean) ?? true} onChange={(v) => setVS('autoplay', v)} />
+                    </Field>
+                    <Field label="Loop">
+                      <Toggle value={(vs.loop as boolean) ?? true} onChange={(v) => setVS('loop', v)} />
+                    </Field>
+                  </div>
+                </div>
+              )}
+
+              {actor.actor_type === 'embed' && (() => {
+                const embedType = (vs.embed_type as string) ?? 'iframe'
+                const EMBED_TYPES = ['iframe', 'spline', 'html']
+                function resetEmbedContent(newType: string) {
+                  const base = { embed_type: newType, width: vs.width ?? 400, height: vs.height ?? 300 }
+                  if (newType === 'html') return { ...base, html: '' }
+                  return { ...base, url: '' }
+                }
+                return (
+                  <div className="flex flex-col gap-4">
+                    <Field label="Embed Type">
+                      <Select
+                        value={embedType}
+                        options={EMBED_TYPES}
+                        onChange={(v) => setActor({ ...actor, visual_schema: resetEmbedContent(v) as VisualSchema })}
+                      />
+                    </Field>
+                    {(embedType === 'iframe' || embedType === 'spline') && (
+                      <Field label="URL">
+                        <Input
+                          value={(vs.url as string) ?? ''}
+                          onChange={(v) => setVS('url', v)}
+                          placeholder={embedType === 'spline' ? 'https://my.spline.design/...' : 'https://...'}
+                        />
+                      </Field>
+                    )}
+                    {embedType === 'html' && (
+                      <Field label="HTML">
+                        <textarea
+                          spellCheck={false}
+                          className="w-full h-32 bg-white/[0.03] border border-white/10 text-[11px] text-white/60 font-mono p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
+                          value={(vs.html as string) ?? ''}
+                          onChange={(e) => setVS('html', e.target.value)}
+                          placeholder="<div style='color:white'>Hello</div>"
+                        />
+                      </Field>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Width (px)">
+                        <NumberInput value={(vs.width as number) ?? 400} min={50} max={3840} onChange={(v) => setVS('width', v)} />
+                      </Field>
+                      <Field label="Height (px)">
+                        <NumberInput value={(vs.height as number) ?? 300} min={50} max={2160} onChange={(v) => setVS('height', v)} />
+                      </Field>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {actor.actor_type === 'custom' && (
+                <div className="flex flex-col gap-3">
+                  <p className="text-[10px] tracking-[0.15em] uppercase text-white/20">Raw Visual Schema (JSON)</p>
+                  <textarea
+                    spellCheck={false}
+                    className="w-full h-36 bg-white/[0.03] border border-white/10 text-[11px] text-white/60 font-mono p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
+                    value={JSON.stringify(vs, null, 2)}
+                    onChange={(e) => {
+                      try { setActor({ ...actor, visual_schema: JSON.parse(e.target.value) }) } catch {}
+                    }}
+                  />
                 </div>
               )}
 

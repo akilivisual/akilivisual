@@ -16,6 +16,12 @@ export function ActorRenderer({ actor }: ActorRendererProps) {
       return <TextActor actor={actor} />
     case 'image':
       return <ImageActor actor={actor} />
+    case 'media':
+      return <MediaActor actor={actor} />
+    case 'embed':
+      return <EmbedActor actor={actor} />
+    case 'custom':
+      return null
     default:
       return null
   }
@@ -112,5 +118,82 @@ function ImageActor({ actor }: { actor: Actor }) {
       style={{ width: size, height: 'auto', opacity }}
       className="object-contain"
     />
+  )
+}
+
+function MediaActor({ actor }: { actor: Actor }) {
+  const vs = actor.visual_schema ?? {}
+  const tr = actor.transform ?? {}
+
+  const src = vs.src as string
+  const mediaType = (vs.media_type as string) ?? 'video'
+  const width = (vs.width as number) ?? 400
+  const height = (vs.height as number) ?? 300
+  const autoplay = (vs.autoplay as boolean) ?? true
+  const loop = (vs.loop as boolean) ?? true
+  const opacity = (tr.opacity as number) ?? 1
+
+  if (!src) return null
+
+  if (mediaType === 'audio') {
+    return <audio src={src} autoPlay={autoplay} loop={loop} controls style={{ opacity }} />
+  }
+
+  if (mediaType === 'video') {
+    return (
+      <video
+        src={src}
+        autoPlay={autoplay}
+        loop={loop}
+        muted
+        playsInline
+        style={{ width, height, opacity, objectFit: 'cover' }}
+      />
+    )
+  }
+
+  // gif / image fallback
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={actor.name ?? 'media'} style={{ width, height: 'auto', opacity }} className="object-contain" />
+}
+
+function EmbedActor({ actor }: { actor: Actor }) {
+  const vs = actor.visual_schema ?? {}
+  const tr = actor.transform ?? {}
+
+  const embedType = (vs.embed_type as string) ?? 'iframe'
+  const url = (vs.url as string) ?? ''
+  const html = (vs.html as string) ?? ''
+  const width = (vs.width as number) ?? 400
+  const height = (vs.height as number) ?? 300
+  const opacity = (tr.opacity as number) ?? 1
+
+  const containerStyle: React.CSSProperties = { width, height, opacity, overflow: 'hidden', border: 'none' }
+
+  if (embedType === 'spline') {
+    if (!url) return null
+    const src = !url.includes('hide_ui') ? `${url}${url.includes('?') ? '&' : '?'}hide_ui=1` : url
+    return (
+      <div style={containerStyle}>
+        <iframe src={src} sandbox="allow-scripts allow-same-origin" allow="autoplay; fullscreen" style={{ width: '100%', height: '100%', border: 'none' }} />
+      </div>
+    )
+  }
+
+  if (embedType === 'html') {
+    if (!html) return null
+    return (
+      <div style={containerStyle}>
+        <iframe srcDoc={html} sandbox="allow-scripts allow-forms" style={{ width: '100%', height: '100%', border: 'none' }} />
+      </div>
+    )
+  }
+
+  // iframe (default)
+  if (!url) return null
+  return (
+    <div style={containerStyle}>
+      <iframe src={url} sandbox="allow-same-origin" loading="lazy" style={{ width: '100%', height: '100%', border: 'none' }} />
+    </div>
   )
 }

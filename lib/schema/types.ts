@@ -142,6 +142,9 @@ export type ActorType =
   | 'orb'
   | 'text'
   | 'image'
+  | 'media'
+  | 'embed'
+  | 'custom'
   | 'particle_field'
   | string
 
@@ -172,6 +175,16 @@ export interface VisualSchema {
   text?: string
   font_size?: number
   font_weight?: string
+  // media actor
+  media_type?: string
+  width?: number
+  height?: number
+  autoplay?: boolean
+  loop?: boolean
+  // embed actor
+  embed_type?: string
+  url?: string
+  html?: string
 }
 
 export interface MotionProfileData {
