@@ -7,15 +7,21 @@ interface ActorRendererProps {
   actor: Actor
 }
 
-// Positions an actor absolutely within its module container and applies
-// the motion preset from motion_schema. Use this in module renderers.
-export function PositionedActor({ actor }: { actor: Actor }) {
+// Renders an actor as a flex item with auto-layout + fine pixel control.
+// Module containers provide the flex context; this handles per-actor overrides.
+export function FlexActor({ actor }: { actor: Actor }) {
   const tr = (actor.transform ?? {}) as Record<string, unknown>
   const ms = (actor.motion_schema ?? {}) as Record<string, unknown>
 
-  // x/y are offsets from center in percent (0,0 = center, ±50 = screen edges)
-  const x = (tr.x as number) ?? 0
-  const y = (tr.y as number) ?? 0
+  const alignSelf = (tr.align_self as string) ?? 'auto'
+  const mt = (tr.margin_top as number) ?? 0
+  const mr = (tr.margin_right as number) ?? 0
+  const mb = (tr.margin_bottom as number) ?? 0
+  const ml = (tr.margin_left as number) ?? 0
+  // Fine pixel nudge on top of flow — does NOT affect neighbouring actors
+  const ox = (tr.offset_x as number) ?? 0
+  const oy = (tr.offset_y as number) ?? 0
+
   const scaleVal = (tr.scale as number) ?? 1
   const rotateVal = (tr.rotate as number) ?? 0
   const opacityVal = (tr.opacity as number) ?? 1
@@ -24,55 +30,55 @@ export function PositionedActor({ actor }: { actor: Actor }) {
   const preset = (ms.preset as string) ?? 'phase_in'
 
   const easeOut = { duration, delay, ease: 'easeOut' as const }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let initial: any, animate: any, transition: any = easeOut
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let initial: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let animate: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let transition: any = easeOut
+  // Final resting state always includes the fine offset and visual props
+  const rest = { opacity: opacityVal, scale: scaleVal, rotate: rotateVal, x: ox, y: oy }
 
   switch (preset) {
     case 'fade_in':
-      initial = { opacity: 0, scale: scaleVal }
-      animate = { opacity: opacityVal, scale: scaleVal }
+      initial = { ...rest, opacity: 0 }
+      animate = rest
       break
     case 'slide_up':
-      initial = { opacity: 0, y: 24, scale: scaleVal }
-      animate = { opacity: opacityVal, y: 0, scale: scaleVal }
+      initial = { ...rest, opacity: 0, y: oy + 24 }
+      animate = rest
       break
     case 'scale_in':
-      initial = { opacity: 0, scale: scaleVal * 0.78 }
-      animate = { opacity: opacityVal, scale: scaleVal }
+      initial = { ...rest, opacity: 0, scale: scaleVal * 0.78 }
+      animate = rest
       break
     case 'pulse':
-      initial = { opacity: opacityVal, scale: scaleVal }
-      animate = { opacity: [opacityVal, opacityVal * 0.3, opacityVal], scale: scaleVal }
+      initial = rest
+      animate = { ...rest, opacity: [opacityVal, opacityVal * 0.3, opacityVal] }
       transition = { duration, delay, repeat: Infinity, ease: 'easeInOut' }
       break
     case 'none':
-      initial = { opacity: opacityVal, scale: scaleVal }
-      animate = { opacity: opacityVal, scale: scaleVal }
+      initial = rest
+      animate = rest
       break
     default: // 'phase_in'
-      initial = { opacity: 0, scale: scaleVal * 0.94 }
-      animate = { opacity: opacityVal, scale: scaleVal }
+      initial = { ...rest, opacity: 0, scale: scaleVal * 0.94 }
+      animate = rest
       break
   }
 
   return (
-    <div
+    <motion.div
       style={{
-        position: 'absolute',
-        left: `calc(50% + ${x}%)`,
-        top: `calc(50% + ${y}%)`,
-        transform: `translate(-50%, -50%) rotate(${rotateVal}deg)`,
+        alignSelf,
+        marginTop: mt,
+        marginRight: mr,
+        marginBottom: mb,
+        marginLeft: ml,
       }}
+      initial={initial}
+      animate={animate}
+      transition={transition}
     >
-      <motion.div initial={initial} animate={animate} transition={transition}>
-        <ActorRenderer actor={actor} />
-      </motion.div>
-    </div>
+      <ActorRenderer actor={actor} />
+    </motion.div>
   )
 }
 

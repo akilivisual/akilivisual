@@ -181,6 +181,16 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
 
 function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (m: ModuleWithActors) => void }) {
   const pos = (module.position ?? {}) as Record<string, number>
+  const props = (module.props ?? {}) as Record<string, unknown>
+  const layout = (props.layout ?? {}) as Record<string, unknown>
+
+  function setLayout(key: string, value: unknown) {
+    onChange({ ...module, props: { ...props, layout: { ...layout, [key]: value } } })
+  }
+
+  const direction = (layout.direction as string) ?? 'column'
+  const justify = (layout.justify as string) ?? 'center'
+  const align = (layout.align as string) ?? 'center'
 
   return (
     <div className="flex flex-col gap-6">
@@ -200,18 +210,93 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
         />
       </Field>
 
-      <Divider label="Position" />
-      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">0, 0 = center · ±50 = screen edges · depth layer controls z-order</p>
+      <Divider label="Actor Layout" />
+
+      {/* Direction toggle */}
+      <Field label="Direction">
+        <div className="flex gap-2">
+          {(['column', 'row'] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setLayout('direction', d)}
+              className={`flex-1 py-1.5 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
+                direction === d ? 'border-white/40 text-white' : 'border-white/10 text-white/30 hover:text-white/60'
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Main Axis (justify)">
+        <div className="flex gap-1 flex-wrap">
+          {(['flex-start', 'center', 'flex-end', 'space-between', 'space-around'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setLayout('justify', v)}
+              className={`px-2 py-1 border text-[9px] tracking-[0.1em] uppercase transition-colors ${
+                justify === v ? 'border-white/40 text-white' : 'border-white/10 text-white/25 hover:text-white/60'
+              }`}
+            >
+              {v.replace('flex-', '').replace('space-', '')}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Cross Axis (align)">
+        <div className="flex gap-2">
+          {(['flex-start', 'center', 'flex-end'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setLayout('align', v)}
+              className={`flex-1 py-1.5 border text-[10px] tracking-[0.12em] uppercase transition-colors ${
+                align === v ? 'border-white/40 text-white' : 'border-white/10 text-white/30 hover:text-white/60'
+              }`}
+            >
+              {v.replace('flex-', '')}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Gap (px)">
+        <NumberInput
+          value={(layout.gap as number) ?? 0}
+          min={0} max={200}
+          onChange={(v) => setLayout('gap', v)}
+        />
+      </Field>
+
+      <Divider label="Padding" />
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Top">
+          <NumberInput value={(layout.padding_top as number) ?? 0} min={0} max={500} onChange={(v) => setLayout('padding_top', v)} />
+        </Field>
+        <Field label="Bottom">
+          <NumberInput value={(layout.padding_bottom as number) ?? 0} min={0} max={500} onChange={(v) => setLayout('padding_bottom', v)} />
+        </Field>
+        <Field label="Left">
+          <NumberInput value={(layout.padding_left as number) ?? 0} min={0} max={500} onChange={(v) => setLayout('padding_left', v)} />
+        </Field>
+        <Field label="Right">
+          <NumberInput value={(layout.padding_right as number) ?? 0} min={0} max={500} onChange={(v) => setLayout('padding_right', v)} />
+        </Field>
+      </div>
+
+      <Divider label="Canvas Position" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Shifts this module's frame on the canvas. 0, 0 = center.</p>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="X (offset from center)">
+        <Field label="X (% from center)">
           <NumberInput
             value={pos.x ?? 0}
             min={-50} max={50}
             onChange={(v) => onChange({ ...module, position: { ...pos, x: v } })}
           />
         </Field>
-        <Field label="Y (offset from center)">
+        <Field label="Y (% from center)">
           <NumberInput
             value={pos.y ?? 0}
             min={-50} max={50}
@@ -220,7 +305,7 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
         </Field>
       </div>
 
-      <Field label="Z Offset (adds to depth layer)">
+      <Field label="Z Offset">
         <NumberInput
           value={pos.z ?? 0}
           min={-5} max={5}
@@ -647,15 +732,52 @@ function ActorEditor({
                 />
               </Field>
 
-              <Divider label="Transform" />
-              <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">0, 0 = center · ±50 = screen edges</p>
+              <Divider label="Layout" />
+              <Field label="Align Self">
+                <div className="flex gap-1">
+                  {(['auto', 'flex-start', 'center', 'flex-end'] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setTR('align_self', v)}
+                      className={`flex-1 py-1 border text-[9px] tracking-[0.08em] uppercase transition-colors ${
+                        (tr.align_self ?? 'auto') === v
+                          ? 'border-white/40 text-white'
+                          : 'border-white/10 text-white/25 hover:text-white/60'
+                      }`}
+                    >
+                      {v.replace('flex-', '')}
+                    </button>
+                  ))}
+                </div>
+              </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="X (offset from center)">
-                  <NumberInput value={(tr.x as number) ?? 0} min={-50} max={50} onChange={(v) => setTR('x', v)} />
+                <Field label="Margin Top (px)">
+                  <NumberInput value={(tr.margin_top as number) ?? 0} min={-500} max={500} onChange={(v) => setTR('margin_top', v)} />
                 </Field>
-                <Field label="Y (offset from center)">
-                  <NumberInput value={(tr.y as number) ?? 0} min={-50} max={50} onChange={(v) => setTR('y', v)} />
+                <Field label="Margin Bottom (px)">
+                  <NumberInput value={(tr.margin_bottom as number) ?? 0} min={-500} max={500} onChange={(v) => setTR('margin_bottom', v)} />
                 </Field>
+                <Field label="Margin Left (px)">
+                  <NumberInput value={(tr.margin_left as number) ?? 0} min={-500} max={500} onChange={(v) => setTR('margin_left', v)} />
+                </Field>
+                <Field label="Margin Right (px)">
+                  <NumberInput value={(tr.margin_right as number) ?? 0} min={-500} max={500} onChange={(v) => setTR('margin_right', v)} />
+                </Field>
+              </div>
+
+              <Divider label="Fine Control" />
+              <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Nudges the actor without affecting neighbours</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="X Offset (px)">
+                  <NumberInput value={(tr.offset_x as number) ?? 0} min={-1000} max={1000} onChange={(v) => setTR('offset_x', v)} />
+                </Field>
+                <Field label="Y Offset (px)">
+                  <NumberInput value={(tr.offset_y as number) ?? 0} min={-1000} max={1000} onChange={(v) => setTR('offset_y', v)} />
+                </Field>
+              </div>
+
+              <Divider label="Visual" />
+              <div className="grid grid-cols-2 gap-4">
                 <Field label="Opacity">
                   <SliderInput value={(tr.opacity as number) ?? 1} min={0} max={1} step={0.01} onChange={(v) => setTR('opacity', v)} />
                 </Field>
