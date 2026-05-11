@@ -12,6 +12,8 @@ interface ModuleRendererProps {
 }
 
 export function ModuleRenderer({ module }: ModuleRendererProps) {
+  if ((module.props as Record<string, unknown>)?.hidden) return null
+
   switch (module.module_type) {
     case 'focus':
       return <FocusModule module={module} />
@@ -23,6 +25,7 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
       return <EmbedModule module={module} />
     default: {
       const layout = ((module.props as Record<string, unknown>)?.layout ?? {}) as Record<string, unknown>
+      const moduleMotion = (module.motion_profile ?? {}) as Record<string, unknown>
       return (
         <div
           className="absolute inset-0"
@@ -39,7 +42,7 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
           }}
         >
           {module.actors.map((actor) => (
-            <FlexActor key={actor.id} actor={actor} />
+            <FlexActor key={actor.id} actor={actor} moduleMotion={moduleMotion} />
           ))}
         </div>
       )

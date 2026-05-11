@@ -9,6 +9,7 @@ interface FocusModuleProps {
 
 export function FocusModule({ module }: FocusModuleProps) {
   const layout = ((module.props as Record<string, unknown>)?.layout ?? {}) as Record<string, unknown>
+  const moduleMotion = (module.motion_profile ?? {}) as Record<string, unknown>
 
   const direction = (layout.direction as string) ?? 'column'
   const justify = (layout.justify as string) ?? 'center'
@@ -35,7 +36,7 @@ export function FocusModule({ module }: FocusModuleProps) {
       }}
     >
       {module.actors.map((actor) => (
-        <FlexActor key={actor.id} actor={actor} />
+        <FlexActor key={actor.id} actor={actor} moduleMotion={moduleMotion} />
       ))}
     </div>
   )

@@ -544,7 +544,7 @@ function ActorsTab({
   const [addError, setAddError] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  useEffect(() => { setActors(module.actors) }, [module.actors])
+  useEffect(() => { setActors(module.actors) }, [module.id])
 
   async function handleReorder(reordered: Actor[]) {
     setActors(reordered)
@@ -709,7 +709,7 @@ function ActorEditor({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
-  useEffect(() => { setActor(initial) }, [initial])
+  useEffect(() => { setActor(initial) }, [initial.id])
 
   const vs = (actor.visual_schema ?? {}) as Record<string, unknown>
   const tr = (actor.transform ?? {}) as Record<string, unknown>

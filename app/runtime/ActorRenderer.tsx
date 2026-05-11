@@ -9,7 +9,8 @@ interface ActorRendererProps {
 
 // Renders an actor as a flex item with auto-layout + fine pixel control.
 // Module containers provide the flex context; this handles per-actor overrides.
-export function FlexActor({ actor }: { actor: Actor }) {
+// moduleMotion is module.motion_profile — when loop=true an ambient outer layer runs after entrance.
+export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?: Record<string, unknown> }) {
   const tr = (actor.transform ?? {}) as Record<string, unknown>
   const ms = (actor.motion_schema ?? {}) as Record<string, unknown>
 
@@ -80,20 +81,35 @@ export function FlexActor({ actor }: { actor: Actor }) {
   const hidden = !!(actor.metadata as Record<string, unknown>)?.hidden
   if (hidden) return null
 
+  const outerStyle = { alignSelf, marginTop: mt, marginRight: mr, marginBottom: mb, marginLeft: ml }
+
+  // Entrance motion — always present
+  const entrance = (
+    <motion.div initial={initial} animate={animate} transition={transition}>
+      <ActorRenderer actor={actor} />
+    </motion.div>
+  )
+
+  // Module ambient loop — runs after entrance settles, skipped if actor already pulses
+  const hasAmbient = !!(moduleMotion?.loop) && preset !== 'pulse'
+  if (!hasAmbient) {
+    return <div style={outerStyle}>{entrance}</div>
+  }
+
+  const ambientDelay = duration + delay + ((moduleMotion?.delay as number) ?? 0)
+  const opMin = (moduleMotion?.opacity_min as number) ?? 0.7
+  const opMax = (moduleMotion?.opacity_max as number) ?? 1
+  const scMin = (moduleMotion?.scale_min as number) ?? 1
+  const scMax = (moduleMotion?.scale_max as number) ?? 1
+  const ambientDur = (moduleMotion?.duration as number) ?? 3
+
   return (
     <motion.div
-      style={{
-        alignSelf,
-        marginTop: mt,
-        marginRight: mr,
-        marginBottom: mb,
-        marginLeft: ml,
-      }}
-      initial={initial}
-      animate={animate}
-      transition={transition}
+      style={outerStyle}
+      animate={{ opacity: [opMin, opMax, opMin], scale: [scMin, scMax, scMin] }}
+      transition={{ duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: 'easeInOut', repeatType: 'loop' }}
     >
-      <ActorRenderer actor={actor} />
+      {entrance}
     </motion.div>
   )
 }
