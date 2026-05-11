@@ -78,6 +78,7 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
     const newProps = { ...currentProps, hidden: !currentProps.hidden }
     setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, props: newProps } : m))
     await updateModule(moduleId, { props: newProps })
+    onSaved?.()
   }
 
   function handleSaved(updatedModule?: ModuleWithActors) {
