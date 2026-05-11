@@ -785,9 +785,13 @@ function ActorEditor({
         <div className="flex items-center gap-2">
           <button
             onClick={toggleHidden}
-            className="text-[10px] text-white/25 hover:text-white/60 transition-colors px-2 py-1 tracking-[0.1em] uppercase"
+            className={`text-[10px] px-2 py-1 border tracking-[0.1em] uppercase transition-colors ${
+              hidden
+                ? 'border-white/30 text-white/60 hover:text-white hover:border-white/50'
+                : 'border-white/10 text-white/30 hover:text-white/60 hover:border-white/25'
+            }`}
           >
-            {hidden ? 'Show' : 'Hide'}
+            {hidden ? '● Show' : '○ Hide'}
           </button>
           <button
             onClick={onDelete}
@@ -1064,7 +1068,7 @@ function ActorEditor({
               <Field label="Preset">
                 <Select
                   value={(ms.preset as string) ?? 'phase_in'}
-                  options={['phase_in', 'fade_in', 'slide_up', 'scale_in', 'pulse', 'none']}
+                  options={['phase_in', 'fade_in', 'slide_up', 'slide_down', 'slide_left', 'slide_right', 'scale_in', 'pulse', 'none']}
                   onChange={(v) => setMS('preset', v)}
                 />
               </Field>

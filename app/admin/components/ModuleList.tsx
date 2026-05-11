@@ -227,9 +227,13 @@ function DraggableModule({
           </span>
           <button
             onClick={onToggleHidden}
-            className="py-1.5 px-2.5 border border-white/10 text-[10px] tracking-[0.15em] uppercase text-white/25 hover:text-white/60 hover:border-white/25 transition-colors"
+            className={`py-1.5 px-2.5 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
+              hidden
+                ? 'border-white/30 text-white/60 hover:text-white hover:border-white/50'
+                : 'border-white/15 text-white/35 hover:text-white/70 hover:border-white/35'
+            }`}
           >
-            {hidden ? 'Show' : 'Hide'}
+            {hidden ? '● Show' : '○ Hide'}
           </button>
           <button
             onClick={onEdit}

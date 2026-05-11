@@ -42,27 +42,43 @@ export function FlexActor({ actor }: { actor: Actor }) {
       animate = rest
       break
     case 'slide_up':
-      initial = { ...rest, opacity: 0, y: oy + 24 }
+      initial = { ...rest, opacity: 0, y: oy + 60 }
+      animate = rest
+      break
+    case 'slide_down':
+      initial = { ...rest, opacity: 0, y: oy - 60 }
+      animate = rest
+      break
+    case 'slide_left':
+      initial = { ...rest, opacity: 0, x: ox + 60 }
+      animate = rest
+      break
+    case 'slide_right':
+      initial = { ...rest, opacity: 0, x: ox - 60 }
       animate = rest
       break
     case 'scale_in':
-      initial = { ...rest, opacity: 0, scale: scaleVal * 0.78 }
+      initial = { ...rest, opacity: 0, scale: scaleVal * 0.5 }
       animate = rest
       break
     case 'pulse':
       initial = rest
-      animate = { ...rest, opacity: [opacityVal, opacityVal * 0.3, opacityVal] }
+      animate = { ...rest, opacity: [opacityVal, opacityVal * 0.2, opacityVal] }
       transition = { duration, delay, repeat: Infinity, ease: 'easeInOut' }
       break
     case 'none':
       initial = rest
       animate = rest
+      transition = { duration: 0, delay: 0 }
       break
     default: // 'phase_in'
-      initial = { ...rest, opacity: 0, scale: scaleVal * 0.94 }
+      initial = { ...rest, opacity: 0, scale: scaleVal * 0.92 }
       animate = rest
       break
   }
+
+  const hidden = !!(actor.metadata as Record<string, unknown>)?.hidden
+  if (hidden) return null
 
   return (
     <motion.div
