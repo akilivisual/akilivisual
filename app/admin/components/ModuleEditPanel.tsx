@@ -548,6 +548,7 @@ function ActorEditor({
 }) {
   const [actor, setActor] = useState(initial)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => { setActor(initial) }, [initial])
 
@@ -567,7 +568,8 @@ function ActorEditor({
 
   async function save() {
     setSaving(true)
-    await updateActor(actor.id, {
+    setSaveError('')
+    const result = await updateActor(actor.id, {
       name: actor.name ?? undefined,
       actor_type: actor.actor_type,
       transform: (actor.transform ?? {}) as Record<string, unknown>,
@@ -575,7 +577,11 @@ function ActorEditor({
       motion_schema: (actor.motion_schema ?? {}) as Record<string, unknown>,
     })
     setSaving(false)
-    onSaved()
+    if (result.ok) {
+      onSaved()
+    } else {
+      setSaveError(result.error ?? 'Save failed')
+    }
   }
 
   return (
@@ -811,7 +817,10 @@ function ActorEditor({
                 </Field>
               </div>
 
-              <div className="flex justify-end pt-1">
+              <div className="flex items-center justify-end gap-3 pt-1">
+                {saveError && (
+                  <span className="text-[10px] text-red-400/70">{saveError}</span>
+                )}
                 <button
                   onClick={save}
                   disabled={saving}
