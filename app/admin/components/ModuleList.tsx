@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Reorder, useDragControls, AnimatePresence } from 'framer-motion'
 import type { ModuleWithActors, Actor } from '@/lib/schema/types'
 import { reorderModules } from '@/app/admin/actions/canvas'
-import { addModule, deleteModule } from '@/app/admin/actions/modules'
+import { addModule, deleteModule, updateModule } from '@/app/admin/actions/modules'
 import { ModuleEditPanel } from './ModuleEditPanel'
 
 const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'text_block', 'media', 'custom']
@@ -71,6 +71,15 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
     setSaving(false)
   }
 
+  async function handleToggleHidden(moduleId: string) {
+    const mod = modules.find((m) => m.id === moduleId)
+    if (!mod) return
+    const currentProps = (mod.props ?? {}) as Record<string, unknown>
+    const newProps = { ...currentProps, hidden: !currentProps.hidden }
+    setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, props: newProps } : m))
+    await updateModule(moduleId, { props: newProps })
+  }
+
   function handleSaved(updatedModule?: ModuleWithActors) {
     if (updatedModule) {
       setModules(prev => prev.map(m => m.id === updatedModule.id ? updatedModule : m))
@@ -111,6 +120,7 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
                 index={i}
                 onEdit={() => setEditing(mod)}
                 onDelete={() => handleDelete(mod.id)}
+                onToggleHidden={() => handleToggleHidden(mod.id)}
               />
             ))}
           </Reorder.Group>
@@ -154,21 +164,24 @@ function DraggableModule({
   index,
   onEdit,
   onDelete,
+  onToggleHidden,
 }: {
   module: ModuleWithActors
   index: number
   onEdit: () => void
   onDelete: () => void
+  onToggleHidden: () => void
 }) {
   const controls = useDragControls()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const hidden = !!((module.props as Record<string, unknown>)?.hidden)
 
   return (
     <Reorder.Item
       value={module}
       dragListener={false}
       dragControls={controls}
-      className="border border-white/10 bg-white/[0.02] cursor-default select-none"
+      className={`border border-white/10 cursor-default select-none transition-opacity ${hidden ? 'opacity-40 bg-transparent' : 'bg-white/[0.02]'}`}
       whileDrag={{
         scale: 1.01,
         borderColor: 'rgba(255,255,255,0.25)',
@@ -212,6 +225,12 @@ function DraggableModule({
           <span className="text-[10px] tracking-[0.15em] uppercase text-white/25">
             {module.actors.length} {module.actors.length === 1 ? 'actor' : 'actors'}
           </span>
+          <button
+            onClick={onToggleHidden}
+            className="py-1.5 px-2.5 border border-white/10 text-[10px] tracking-[0.15em] uppercase text-white/25 hover:text-white/60 hover:border-white/25 transition-colors"
+          >
+            {hidden ? 'Show' : 'Hide'}
+          </button>
           <button
             onClick={onEdit}
             className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/35 hover:text-white hover:border-white/45 transition-colors"

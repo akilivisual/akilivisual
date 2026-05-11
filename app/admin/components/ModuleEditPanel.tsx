@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion'
 import type { ModuleWithActors, Actor, VisualSchema, MediaAsset } from '@/lib/schema/types'
-import { updateModule, updateActor, addActor, deleteActor } from '@/app/admin/actions/modules'
+import { updateModule, updateActor, addActor, deleteActor, reorderActors } from '@/app/admin/actions/modules'
 import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
 import { getSupabase } from '@/lib/supabase/client'
 
@@ -539,22 +539,32 @@ function ActorsTab({
   onChange: (m: ModuleWithActors) => void
   onSaved: (m: ModuleWithActors) => void
 }) {
+  const [actors, setActors] = useState<Actor[]>(module.actors)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  useEffect(() => { setActors(module.actors) }, [module.actors])
+
+  async function handleReorder(reordered: Actor[]) {
+    setActors(reordered)
+    await reorderActors(reordered.map((a) => a.id))
+    const updated = { ...module, actors: reordered }
+    onChange(updated)
+  }
 
   async function handleAdd(type: string) {
     setAdding(true)
     setAddError('')
     try {
-      const result = await addActor(module.id, module.actors.length, type)
+      const result = await addActor(module.id, actors.length, type)
       if (result.ok && result.id) {
         const newActor: Actor = {
           id: result.id,
           module_id: module.id,
           actor_type: type,
           name: `New ${type}`,
-          order_index: module.actors.length,
+          order_index: actors.length,
           transform: { opacity: 1 },
           visual_schema: defaultVisualSchema(type),
           motion_schema: {},
@@ -564,7 +574,9 @@ function ActorsTab({
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
-        const updated = { ...module, actors: [...module.actors, newActor] }
+        const newActors = [...actors, newActor]
+        setActors(newActors)
+        const updated = { ...module, actors: newActors }
         onChange(updated)
         setExpandedId(result.id)
         onSaved(updated)
@@ -580,33 +592,39 @@ function ActorsTab({
 
   async function handleDelete(actorId: string) {
     await deleteActor(actorId)
-    const updated = { ...module, actors: module.actors.filter((a) => a.id !== actorId) }
+    const newActors = actors.filter((a) => a.id !== actorId)
+    setActors(newActors)
+    const updated = { ...module, actors: newActors }
     onChange(updated)
     onSaved(updated)
   }
 
   function handleActorSaved(savedActor: Actor) {
-    const updated = { ...module, actors: module.actors.map(a => a.id === savedActor.id ? savedActor : a) }
+    const newActors = actors.map((a) => a.id === savedActor.id ? savedActor : a)
+    setActors(newActors)
+    const updated = { ...module, actors: newActors }
     onChange(updated)
     onSaved(updated)
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {module.actors.length === 0 && (
+      {actors.length === 0 && (
         <p className="text-[11px] text-white/20 text-center py-6 tracking-wide">No actors yet</p>
       )}
 
-      {module.actors.map((actor) => (
-        <ActorEditor
-          key={actor.id}
-          actor={actor}
-          expanded={expandedId === actor.id}
-          onToggle={() => setExpandedId(expandedId === actor.id ? null : actor.id)}
-          onDelete={() => handleDelete(actor.id)}
-          onActorSaved={handleActorSaved}
-        />
-      ))}
+      <Reorder.Group axis="y" values={actors} onReorder={handleReorder} className="flex flex-col gap-3">
+        {actors.map((actor) => (
+          <DraggableActorEditor
+            key={actor.id}
+            actor={actor}
+            expanded={expandedId === actor.id}
+            onToggle={() => setExpandedId(expandedId === actor.id ? null : actor.id)}
+            onDelete={() => handleDelete(actor.id)}
+            onActorSaved={handleActorSaved}
+          />
+        ))}
+      </Reorder.Group>
 
       {/* Add actor */}
       <div className="border border-white/[0.08] border-dashed mt-2">
@@ -631,8 +649,8 @@ function ActorsTab({
   )
 }
 
-function ActorEditor({
-  actor: initial,
+function DraggableActorEditor({
+  actor,
   expanded,
   onToggle,
   onDelete,
@@ -643,6 +661,49 @@ function ActorEditor({
   onToggle: () => void
   onDelete: () => void
   onActorSaved: (a: Actor) => void
+}) {
+  const controls = useDragControls()
+  return (
+    <Reorder.Item
+      value={actor}
+      dragListener={false}
+      dragControls={controls}
+      className="border border-white/10 bg-white/[0.02] cursor-default select-none"
+      whileDrag={{
+        scale: 1.01,
+        borderColor: 'rgba(255,255,255,0.25)',
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        zIndex: 10,
+      }}
+      transition={{ duration: 0 }}
+    >
+      <ActorEditor
+        actor={actor}
+        expanded={expanded}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onActorSaved={onActorSaved}
+        dragControls={controls}
+      />
+    </Reorder.Item>
+  )
+}
+
+function ActorEditor({
+  actor: initial,
+  expanded,
+  onToggle,
+  onDelete,
+  onActorSaved,
+  dragControls,
+}: {
+  actor: Actor
+  expanded: boolean
+  onToggle: () => void
+  onDelete: () => void
+  onActorSaved: (a: Actor) => void
+  dragControls?: ReturnType<typeof useDragControls>
 }) {
   const [actor, setActor] = useState(initial)
   const [saving, setSaving] = useState(false)
@@ -664,6 +725,16 @@ function ActorEditor({
     setActor({ ...actor, motion_schema: { ...ms, [key]: value } })
   }
 
+  const hidden = !!((actor.metadata as Record<string, unknown>)?.hidden)
+
+  async function toggleHidden() {
+    const newMeta = { ...((actor.metadata as Record<string, unknown>) ?? {}), hidden: !hidden }
+    const updated = { ...actor, metadata: newMeta }
+    setActor(updated)
+    await updateActor(actor.id, { metadata: newMeta })
+    onActorSaved(updated)
+  }
+
   async function save() {
     setSaving(true)
     setSaveError('')
@@ -674,6 +745,7 @@ function ActorEditor({
         transform: (actor.transform ?? {}) as Record<string, unknown>,
         visual_schema: (actor.visual_schema ?? {}) as Record<string, unknown>,
         motion_schema: (actor.motion_schema ?? {}) as Record<string, unknown>,
+        metadata: (actor.metadata ?? {}) as Record<string, unknown>,
       })
       if (result.ok) {
         onActorSaved(actor)
@@ -688,22 +760,42 @@ function ActorEditor({
   }
 
   return (
-    <div className="border border-white/10 bg-white/[0.02]">
+    <div className={`transition-opacity ${hidden ? 'opacity-40' : ''}`}>
       {/* Row header */}
       <div className="flex items-center justify-between px-4 py-3">
-        <button onClick={onToggle} className="flex items-center gap-3 flex-1 text-left">
-          <span className="text-[10px] text-white/20">{expanded ? '▾' : '▸'}</span>
-          <span className="text-[11px] tracking-wide text-white/70">{actor.name ?? actor.actor_type}</span>
-          <span className="text-[10px] tracking-[0.12em] uppercase text-white/25 border border-white/[0.08] px-2 py-0.5">
-            {actor.actor_type}
-          </span>
-        </button>
-        <button
-          onClick={onDelete}
-          className="text-[10px] text-white/35 hover:text-red-400/70 transition-colors px-2"
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-3 flex-1">
+          {dragControls && (
+            <div
+              className="flex flex-col gap-[3px] cursor-grab active:cursor-grabbing px-1 py-1 opacity-30 hover:opacity-70 transition-opacity"
+              onPointerDown={(e) => dragControls.start(e)}
+            >
+              <span className="w-3 h-px bg-white block" />
+              <span className="w-3 h-px bg-white block" />
+              <span className="w-3 h-px bg-white block" />
+            </div>
+          )}
+          <button onClick={onToggle} className="flex items-center gap-3 flex-1 text-left">
+            <span className="text-[10px] text-white/20">{expanded ? '▾' : '▸'}</span>
+            <span className="text-[11px] tracking-wide text-white/70">{actor.name ?? actor.actor_type}</span>
+            <span className="text-[10px] tracking-[0.12em] uppercase text-white/25 border border-white/[0.08] px-2 py-0.5">
+              {actor.actor_type}
+            </span>
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleHidden}
+            className="text-[10px] text-white/25 hover:text-white/60 transition-colors px-2 py-1 tracking-[0.1em] uppercase"
+          >
+            {hidden ? 'Show' : 'Hide'}
+          </button>
+          <button
+            onClick={onDelete}
+            className="text-[10px] text-white/35 hover:text-red-400/70 transition-colors px-2"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
