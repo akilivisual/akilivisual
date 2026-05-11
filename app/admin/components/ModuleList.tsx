@@ -63,10 +63,6 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
   }
 
   function handleSaved() {
-    if (editing) {
-      const updated = modules.find((m) => m.id === editing.id)
-      if (updated) setEditing(updated)
-    }
     onSaved?.()
   }
 
