@@ -845,9 +845,16 @@ function ActorEditor({
               )}
 
               <Divider label="Motion" />
+              <Field label="Preset">
+                <Select
+                  value={(ms.preset as string) ?? 'phase_in'}
+                  options={['phase_in', 'fade_in', 'slide_up', 'scale_in', 'pulse', 'none']}
+                  onChange={(v) => setMS('preset', v)}
+                />
+              </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Duration (s)">
-                  <NumberInput value={(ms.duration as number) ?? 2} min={0.1} max={20} step={0.1} onChange={(v) => setMS('duration', v)} />
+                  <NumberInput value={(ms.duration as number) ?? 1.2} min={0.1} max={20} step={0.1} onChange={(v) => setMS('duration', v)} />
                 </Field>
                 <Field label="Delay (s)">
                   <NumberInput value={(ms.delay as number) ?? 0} min={0} max={10} step={0.1} onChange={(v) => setMS('delay', v)} />

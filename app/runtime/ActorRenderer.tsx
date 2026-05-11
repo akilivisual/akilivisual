@@ -1,9 +1,78 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import type { Actor } from '@/lib/schema/types'
 
 interface ActorRendererProps {
   actor: Actor
+}
+
+// Positions an actor absolutely within its module container and applies
+// the motion preset from motion_schema. Use this in module renderers.
+export function PositionedActor({ actor }: { actor: Actor }) {
+  const tr = (actor.transform ?? {}) as Record<string, unknown>
+  const ms = (actor.motion_schema ?? {}) as Record<string, unknown>
+
+  const x = (tr.x as number) ?? 50
+  const y = (tr.y as number) ?? 50
+  const scaleVal = (tr.scale as number) ?? 1
+  const rotateVal = (tr.rotate as number) ?? 0
+  const opacityVal = (tr.opacity as number) ?? 1
+  const duration = (ms.duration as number) ?? 1.2
+  const delay = (ms.delay as number) ?? 0
+  const preset = (ms.preset as string) ?? 'phase_in'
+
+  const easeOut = { duration, delay, ease: 'easeOut' as const }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let initial: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let animate: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let transition: any = easeOut
+
+  switch (preset) {
+    case 'fade_in':
+      initial = { opacity: 0, scale: scaleVal }
+      animate = { opacity: opacityVal, scale: scaleVal }
+      break
+    case 'slide_up':
+      initial = { opacity: 0, y: 24, scale: scaleVal }
+      animate = { opacity: opacityVal, y: 0, scale: scaleVal }
+      break
+    case 'scale_in':
+      initial = { opacity: 0, scale: scaleVal * 0.78 }
+      animate = { opacity: opacityVal, scale: scaleVal }
+      break
+    case 'pulse':
+      initial = { opacity: opacityVal, scale: scaleVal }
+      animate = { opacity: [opacityVal, opacityVal * 0.3, opacityVal], scale: scaleVal }
+      transition = { duration, delay, repeat: Infinity, ease: 'easeInOut' }
+      break
+    case 'none':
+      initial = { opacity: opacityVal, scale: scaleVal }
+      animate = { opacity: opacityVal, scale: scaleVal }
+      break
+    default: // 'phase_in'
+      initial = { opacity: 0, scale: scaleVal * 0.94 }
+      animate = { opacity: opacityVal, scale: scaleVal }
+      break
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: `${x}%`,
+        top: `${y}%`,
+        transform: `translate(-50%, -50%) rotate(${rotateVal}deg)`,
+      }}
+    >
+      <motion.div initial={initial} animate={animate} transition={transition}>
+        <ActorRenderer actor={actor} />
+      </motion.div>
+    </div>
+  )
 }
 
 export function ActorRenderer({ actor }: ActorRendererProps) {
@@ -29,9 +98,7 @@ export function ActorRenderer({ actor }: ActorRendererProps) {
 
 function LogoActor({ actor }: { actor: Actor }) {
   const vs = actor.visual_schema ?? {}
-  const tr = actor.transform ?? {}
 
-  const opacity = (tr.opacity as number) ?? 1
   const size = (vs.size as number) ?? 120
   const color = (vs.color as string) ?? '#ffffff'
   const fontSize = (vs.font_size as number) ?? 13
@@ -39,7 +106,7 @@ function LogoActor({ actor }: { actor: Actor }) {
   const text = (vs.text as string) ?? 'AV'
 
   return (
-    <div style={{ opacity, width: size, height: size }} className="flex items-center justify-center">
+    <div style={{ width: size, height: size }} className="flex items-center justify-center">
       {(vs.src as string) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -83,30 +150,22 @@ function OrbActor({ actor }: { actor: Actor }) {
 
 function TextActor({ actor }: { actor: Actor }) {
   const vs = actor.visual_schema ?? {}
-  const tr = actor.transform ?? {}
-
-  return (
-    <span
-      style={{
-        fontSize: (vs.font_size as number) ?? 16,
-        fontWeight: (vs.font_weight as string) ?? '300',
-        color: (vs.color as string) ?? '#ffffff',
-        opacity: (tr.opacity as number) ?? 1,
-        letterSpacing: '0.05em',
-      }}
-    >
-      {(vs.text as string) ?? ''}
-    </span>
-  )
+  const text = (vs.text as string) ?? ''
+  const hasHtml = /<[a-z][\s\S]*>/i.test(text)
+  const style = {
+    fontSize: (vs.font_size as number) ?? 16,
+    fontWeight: (vs.font_weight as string) ?? '300',
+    color: (vs.color as string) ?? '#ffffff',
+    letterSpacing: '0.05em',
+  }
+  if (hasHtml) return <span style={style} dangerouslySetInnerHTML={{ __html: text }} />
+  return <span style={style}>{text}</span>
 }
 
 function ImageActor({ actor }: { actor: Actor }) {
   const vs = actor.visual_schema ?? {}
-  const tr = actor.transform ?? {}
-
   const src = vs.src as string
   const size = (vs.size as number) ?? 200
-  const opacity = (tr.opacity as number) ?? 1
 
   if (!src) return null
 
@@ -115,7 +174,7 @@ function ImageActor({ actor }: { actor: Actor }) {
     <img
       src={src}
       alt={actor.name ?? 'image'}
-      style={{ width: size, height: 'auto', opacity }}
+      style={{ width: size, height: 'auto' }}
       className="object-contain"
     />
   )
@@ -123,20 +182,17 @@ function ImageActor({ actor }: { actor: Actor }) {
 
 function MediaActor({ actor }: { actor: Actor }) {
   const vs = actor.visual_schema ?? {}
-  const tr = actor.transform ?? {}
-
   const src = vs.src as string
   const mediaType = (vs.media_type as string) ?? 'video'
   const width = (vs.width as number) ?? 400
   const height = (vs.height as number) ?? 300
   const autoplay = (vs.autoplay as boolean) ?? true
   const loop = (vs.loop as boolean) ?? true
-  const opacity = (tr.opacity as number) ?? 1
 
   if (!src) return null
 
   if (mediaType === 'audio') {
-    return <audio src={src} autoPlay={autoplay} loop={loop} controls style={{ opacity }} />
+    return <audio src={src} autoPlay={autoplay} loop={loop} controls />
   }
 
   if (mediaType === 'video') {
@@ -147,14 +203,13 @@ function MediaActor({ actor }: { actor: Actor }) {
         loop={loop}
         muted
         playsInline
-        style={{ width, height, opacity, objectFit: 'cover' }}
+        style={{ width, height, objectFit: 'cover' }}
       />
     )
   }
 
-  // gif / image fallback
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={actor.name ?? 'media'} style={{ width, height: 'auto', opacity }} className="object-contain" />
+  return <img src={src} alt={actor.name ?? 'media'} style={{ width, height: 'auto' }} className="object-contain" />
 }
 
 function EmbedActor({ actor }: { actor: Actor }) {
@@ -168,7 +223,7 @@ function EmbedActor({ actor }: { actor: Actor }) {
   const height = (vs.height as number) ?? 300
   const opacity = (tr.opacity as number) ?? 1
 
-  const containerStyle: React.CSSProperties = { width, height, opacity, overflow: 'hidden', border: 'none' }
+  const containerStyle: React.CSSProperties = { width, height, overflow: 'hidden', border: 'none' }
 
   if (embedType === 'spline') {
     if (!url) return null
