@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { ModuleWithActors, Actor, VisualSchema } from '@/lib/schema/types'
+import type { ModuleWithActors, Actor, VisualSchema, MediaAsset } from '@/lib/schema/types'
 import { updateModule, updateActor, addActor, deleteActor } from '@/app/admin/actions/modules'
+import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
+import { getSupabase } from '@/lib/supabase/client'
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -709,8 +711,8 @@ function ActorEditor({
 
               {actor.actor_type === 'image' && (
                 <div className="flex flex-col gap-4">
-                  <Field label="Image URL">
-                    <Input value={(vs.src as string) ?? ''} onChange={(v) => setVS('src', v)} placeholder="https://..." />
+                  <Field label="Image">
+                    <MediaPickerField src={(vs.src as string) ?? ''} onSrcChange={(url) => setVS('src', url)} />
                   </Field>
                   <Field label="Size (px)">
                     <NumberInput value={(vs.size as number) ?? 200} min={20} max={1200} onChange={(v) => setVS('size', v)} />
@@ -848,6 +850,111 @@ function ActorEditor({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Media Picker ─────────────────────────────────────────────────────
+
+function MediaPickerField({ src, onSrcChange }: { src: string; onSrcChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [showLibrary, setShowLibrary] = useState(false)
+  const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
+  const [loadingLibrary, setLoadingLibrary] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleUpload(file: File) {
+    setUploading(true)
+    setUploadError('')
+    try {
+      const supabase = getSupabase()
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (error) { setUploadError(error.message); return }
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
+      await createMediaAsset(publicUrl, 'image', file.name.replace(/\.[^.]+$/, ''), path)
+      onSrcChange(publicUrl)
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function openLibrary() {
+    setShowLibrary(true)
+    setLoadingLibrary(true)
+    const assets = await listMediaAssets()
+    setLibraryAssets(assets.filter((a) => a.asset_type === 'image'))
+    setLoadingLibrary(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" className="w-full max-h-28 object-contain border border-white/10 bg-white/[0.02]" />
+      )}
+      <input
+        type="text"
+        value={src}
+        onChange={(e) => onSrcChange(e.target.value)}
+        placeholder="https://... or upload / pick from library"
+        className="w-full bg-transparent border-b border-white/10 text-white/70 text-sm py-1.5 focus:outline-none focus:border-white/35 placeholder:text-white/15 transition-colors"
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors disabled:opacity-40"
+        >
+          {uploading ? 'Uploading...' : 'Upload'}
+        </button>
+        <button
+          onClick={showLibrary ? () => setShowLibrary(false) : openLibrary}
+          className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors"
+        >
+          {showLibrary ? 'Close Library' : 'Library'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+        />
+      </div>
+      {uploadError && <p className="text-[10px] text-red-400/70">{uploadError}</p>}
+
+      {showLibrary && (
+        <div className="border border-white/10 bg-black/60 p-3 flex flex-col gap-2">
+          <p className="text-[10px] tracking-[0.2em] uppercase text-white/25 mb-1">Media Library</p>
+          {loadingLibrary ? (
+            <p className="text-[10px] text-white/20 text-center py-4 animate-pulse">Loading...</p>
+          ) : libraryAssets.length === 0 ? (
+            <p className="text-[10px] text-white/20 text-center py-4">No image assets in library</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+              {libraryAssets.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => { onSrcChange(a.url); setShowLibrary(false) }}
+                  className="border border-white/10 hover:border-white/40 transition-colors overflow-hidden group relative"
+                  title={a.title ?? a.url}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={a.url} alt={a.title ?? ''} className="w-full h-16 object-cover" />
+                  {src === a.url && (
+                    <div className="absolute inset-0 border-2 border-white/60 pointer-events-none" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

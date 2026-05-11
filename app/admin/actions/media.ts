@@ -2,6 +2,16 @@
 
 import { getAdminSupabase } from '@/lib/supabase/admin-client'
 import { revalidatePath } from 'next/cache'
+import type { MediaAsset } from '@/lib/schema/types'
+
+export async function listMediaAssets(): Promise<MediaAsset[]> {
+  const supabase = getAdminSupabase()
+  const { data } = await supabase
+    .from('media_assets')
+    .select('*')
+    .order('created_at', { ascending: false })
+  return (data ?? []) as MediaAsset[]
+}
 
 export async function createMediaAsset(
   url: string,
