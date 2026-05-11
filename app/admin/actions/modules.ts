@@ -17,8 +17,9 @@ export async function updateModule(
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = getAdminSupabase()
-  const { error } = await supabase.from('modules').update(patch).eq('id', id)
+  const { data, error } = await supabase.from('modules').update(patch).eq('id', id).select()
   if (error) return { ok: false, error: error.message }
+  if (!data?.length) return { ok: false, error: 'Module not found in database' }
   revalidatePath('/admin/canvas/[slug]', 'page')
   return { ok: true }
 }
@@ -36,8 +37,9 @@ export async function updateActor(
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = getAdminSupabase()
-  const { error } = await supabase.from('actors').update(patch).eq('id', id)
+  const { data, error } = await supabase.from('actors').update(patch).eq('id', id).select()
   if (error) return { ok: false, error: error.message }
+  if (!data?.length) return { ok: false, error: 'Actor not found in database' }
   revalidatePath('/admin/canvas/[slug]', 'page')
   return { ok: true }
 }

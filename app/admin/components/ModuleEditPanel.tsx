@@ -12,7 +12,7 @@ type Tab = 'layout' | 'motion' | 'props' | 'actors'
 interface Props {
   module: ModuleWithActors
   onClose: () => void
-  onSaved: () => void
+  onSaved: (m: ModuleWithActors) => void
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
       })
       if (result.ok) {
         setStatus('Saved')
-        onSaved()
+        onSaved(module)
         setTimeout(() => setStatus(''), 2000)
       } else {
         setStatus(result.error ?? 'Error')
@@ -145,7 +145,7 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
             <PropsTab module={module} onChange={setModule} />
           )}
           {tab === 'actors' && (
-            <ActorsTab module={module} onChange={setModule} onSaved={onSaved} />
+            <ActorsTab module={module} onChange={setModule} onSaved={(m) => { setModule(m); onSaved(m) }} />
           )}
         </div>
 
@@ -449,7 +449,7 @@ function ActorsTab({
 }: {
   module: ModuleWithActors
   onChange: (m: ModuleWithActors) => void
-  onSaved: () => void
+  onSaved: (m: ModuleWithActors) => void
 }) {
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
@@ -476,9 +476,10 @@ function ActorsTab({
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
-        onChange({ ...module, actors: [...module.actors, newActor] })
+        const updated = { ...module, actors: [...module.actors, newActor] }
+        onChange(updated)
         setExpandedId(result.id)
-        onSaved()
+        onSaved(updated)
       } else {
         setAddError(result.error ?? 'Failed to add actor')
       }
@@ -491,11 +492,15 @@ function ActorsTab({
 
   async function handleDelete(actorId: string) {
     await deleteActor(actorId)
-    onChange({
-      ...module,
-      actors: module.actors.filter((a) => a.id !== actorId),
-    })
-    onSaved()
+    const updated = { ...module, actors: module.actors.filter((a) => a.id !== actorId) }
+    onChange(updated)
+    onSaved(updated)
+  }
+
+  function handleActorSaved(savedActor: Actor) {
+    const updated = { ...module, actors: module.actors.map(a => a.id === savedActor.id ? savedActor : a) }
+    onChange(updated)
+    onSaved(updated)
   }
 
   return (
@@ -511,7 +516,7 @@ function ActorsTab({
           expanded={expandedId === actor.id}
           onToggle={() => setExpandedId(expandedId === actor.id ? null : actor.id)}
           onDelete={() => handleDelete(actor.id)}
-          onSaved={onSaved}
+          onActorSaved={handleActorSaved}
         />
       ))}
 
@@ -543,13 +548,13 @@ function ActorEditor({
   expanded,
   onToggle,
   onDelete,
-  onSaved,
+  onActorSaved,
 }: {
   actor: Actor
   expanded: boolean
   onToggle: () => void
   onDelete: () => void
-  onSaved: () => void
+  onActorSaved: (a: Actor) => void
 }) {
   const [actor, setActor] = useState(initial)
   const [saving, setSaving] = useState(false)
@@ -583,7 +588,7 @@ function ActorEditor({
         motion_schema: (actor.motion_schema ?? {}) as Record<string, unknown>,
       })
       if (result.ok) {
-        onSaved()
+        onActorSaved(actor)
       } else {
         setSaveError(result.error ?? 'Save failed')
       }

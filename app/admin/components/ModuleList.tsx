@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Reorder, useDragControls, AnimatePresence } from 'framer-motion'
 import type { ModuleWithActors, Actor } from '@/lib/schema/types'
 import { reorderModules } from '@/app/admin/actions/canvas'
@@ -20,6 +20,15 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<ModuleWithActors | null>(null)
+
+  // Sync with server data after revalidatePath pushes fresh RSC props
+  useEffect(() => {
+    setModules(initial)
+    setEditing(prev => {
+      if (!prev) return prev
+      return initial.find(m => m.id === prev.id) ?? prev
+    })
+  }, [initial])
 
   async function handleAddModule(type: string) {
     setAdding(true)
@@ -62,7 +71,11 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
     setSaving(false)
   }
 
-  function handleSaved() {
+  function handleSaved(updatedModule?: ModuleWithActors) {
+    if (updatedModule) {
+      setModules(prev => prev.map(m => m.id === updatedModule.id ? updatedModule : m))
+      setEditing(updatedModule)
+    }
     onSaved?.()
   }
 
