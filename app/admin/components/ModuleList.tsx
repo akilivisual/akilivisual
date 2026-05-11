@@ -12,9 +12,10 @@ const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'te
 interface ModuleListProps {
   modules: ModuleWithActors[]
   canvasId: string
+  onSaved?: () => void
 }
 
-export function ModuleList({ modules: initial, canvasId }: ModuleListProps) {
+export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListProps) {
   const [modules, setModules] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -25,6 +26,7 @@ export function ModuleList({ modules: initial, canvasId }: ModuleListProps) {
     const result = await addModule(canvasId, type, modules.length)
     setAdding(false)
     if (result.ok) {
+      onSaved?.()
       // Optimistically add a placeholder — page revalidation fills real data
       const placeholder: ModuleWithActors = {
         id: result.id!,
@@ -55,12 +57,11 @@ export function ModuleList({ modules: initial, canvasId }: ModuleListProps) {
   }
 
   function handleSaved() {
-    // Refresh module data in editing panel by re-fetching from current list
-    // The page will revalidate via server action — local state stays optimistic
     if (editing) {
       const updated = modules.find((m) => m.id === editing.id)
       if (updated) setEditing(updated)
     }
+    onSaved?.()
   }
 
   return (

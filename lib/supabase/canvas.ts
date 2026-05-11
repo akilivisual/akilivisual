@@ -37,6 +37,41 @@ export async function fetchCanvasBySlug(slug: string): Promise<CanvasWithModules
   return { ...typedCanvas, modules: modulesWithActors }
 }
 
+export async function fetchAllCanvases(): Promise<CanvasWithModules[]> {
+  const supabase = getSupabase()
+
+  const { data: canvases } = await supabase
+    .from('canvases')
+    .select('*')
+    .order('order_index')
+
+  if (!canvases) return []
+
+  return Promise.all(
+    (canvases as Canvas[]).map(async (canvas) => {
+      const { data: modules } = await supabase
+        .from('modules')
+        .select('*')
+        .eq('canvas_id', canvas.id)
+        .order('order_index')
+
+      const modulesWithActors: ModuleWithActors[] = await Promise.all(
+        ((modules ?? []) as Module[]).map(async (mod) => {
+          const { data: actors } = await supabase
+            .from('actors')
+            .select('*')
+            .eq('module_id', mod.id)
+            .order('order_index')
+
+          return { ...mod, actors: (actors ?? []) as Actor[] }
+        })
+      )
+
+      return { ...canvas, modules: modulesWithActors }
+    })
+  )
+}
+
 export async function fetchCanvasesByProject(projectSlug: string): Promise<CanvasWithModules[]> {
   const supabase = getSupabase()
 
