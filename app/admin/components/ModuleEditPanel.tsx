@@ -201,28 +201,29 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
       </Field>
 
       <Divider label="Position" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">0, 0 = center · ±50 = screen edges · depth layer controls z-order</p>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="X (%)">
+        <Field label="X (offset from center)">
           <NumberInput
-            value={pos.x ?? 50}
-            min={0} max={100}
+            value={pos.x ?? 0}
+            min={-50} max={50}
             onChange={(v) => onChange({ ...module, position: { ...pos, x: v } })}
           />
         </Field>
-        <Field label="Y (%)">
+        <Field label="Y (offset from center)">
           <NumberInput
-            value={pos.y ?? 50}
-            min={0} max={100}
+            value={pos.y ?? 0}
+            min={-50} max={50}
             onChange={(v) => onChange({ ...module, position: { ...pos, y: v } })}
           />
         </Field>
       </div>
 
-      <Field label="Z Index">
+      <Field label="Z Offset (adds to depth layer)">
         <NumberInput
           value={pos.z ?? 0}
-          min={-10} max={10}
+          min={-5} max={5}
           onChange={(v) => onChange({ ...module, position: { ...pos, z: v } })}
         />
       </Field>
@@ -647,12 +648,13 @@ function ActorEditor({
               </Field>
 
               <Divider label="Transform" />
+              <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">0, 0 = center · ±50 = screen edges</p>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="X (%)">
-                  <NumberInput value={(tr.x as number) ?? 50} min={0} max={100} onChange={(v) => setTR('x', v)} />
+                <Field label="X (offset from center)">
+                  <NumberInput value={(tr.x as number) ?? 0} min={-50} max={50} onChange={(v) => setTR('x', v)} />
                 </Field>
-                <Field label="Y (%)">
-                  <NumberInput value={(tr.y as number) ?? 50} min={0} max={100} onChange={(v) => setTR('y', v)} />
+                <Field label="Y (offset from center)">
+                  <NumberInput value={(tr.y as number) ?? 0} min={-50} max={50} onChange={(v) => setTR('y', v)} />
                 </Field>
                 <Field label="Opacity">
                   <SliderInput value={(tr.opacity as number) ?? 1} min={0} max={1} step={0.01} onChange={(v) => setTR('opacity', v)} />

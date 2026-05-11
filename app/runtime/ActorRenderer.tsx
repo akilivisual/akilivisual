@@ -13,8 +13,9 @@ export function PositionedActor({ actor }: { actor: Actor }) {
   const tr = (actor.transform ?? {}) as Record<string, unknown>
   const ms = (actor.motion_schema ?? {}) as Record<string, unknown>
 
-  const x = (tr.x as number) ?? 50
-  const y = (tr.y as number) ?? 50
+  // x/y are offsets from center in percent (0,0 = center, ±50 = screen edges)
+  const x = (tr.x as number) ?? 0
+  const y = (tr.y as number) ?? 0
   const scaleVal = (tr.scale as number) ?? 1
   const rotateVal = (tr.rotate as number) ?? 0
   const opacityVal = (tr.opacity as number) ?? 1
@@ -63,8 +64,8 @@ export function PositionedActor({ actor }: { actor: Actor }) {
     <div
       style={{
         position: 'absolute',
-        left: `${x}%`,
-        top: `${y}%`,
+        left: `calc(50% + ${x}%)`,
+        top: `calc(50% + ${y}%)`,
         transform: `translate(-50%, -50%) rotate(${rotateVal}deg)`,
       }}
     >
