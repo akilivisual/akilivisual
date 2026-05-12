@@ -328,24 +328,39 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [blocked, setBlocked] = useState(false)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || !autoplay) return
-    audio.play().then(() => setPlaying(true)).catch(() => setBlocked(true))
-  }, [autoplay, src])
+    if (!audio) return
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    const onEnded = () => setPlaying(false)
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const onLoadedMetadata = () => setDuration(audio.duration)
+    audio.addEventListener('play', onPlay)
+    audio.addEventListener('pause', onPause)
+    audio.addEventListener('ended', onEnded)
+    audio.addEventListener('timeupdate', onTimeUpdate)
+    audio.addEventListener('loadedmetadata', onLoadedMetadata)
+    if (autoplay) audio.play().catch(() => {})
+    return () => {
+      audio.removeEventListener('play', onPlay)
+      audio.removeEventListener('pause', onPause)
+      audio.removeEventListener('ended', onEnded)
+      audio.removeEventListener('timeupdate', onTimeUpdate)
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata)
+    }
+  }, [])
 
   function togglePlay() {
     const audio = audioRef.current
     if (!audio) return
-    if (playing) {
-      audio.pause()
+    // Use audio.paused (DOM truth) — never the React playing state, which can drift
+    if (audio.paused) {
+      audio.play().catch(() => {})
     } else {
-      audio.play().then(() => setBlocked(false)).catch((err) => {
-        // NotAllowedError = browser policy; anything else is a real problem
-        if (err?.name !== 'NotAllowedError') console.warn('[audio]', err)
-      })
+      audio.pause()
     }
   }
 
@@ -380,16 +395,7 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
       }} />
       {/* Controls */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-        <audio
-          ref={audioRef}
-          src={src}
-          loop={loop}
-          onTimeUpdate={() => { const a = audioRef.current; if (a) setCurrentTime(a.currentTime) }}
-          onLoadedMetadata={() => { const a = audioRef.current; if (a) setDuration(a.duration) }}
-          onEnded={() => setPlaying(false)}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-        />
+        <audio ref={audioRef} src={src} loop={loop} preload="auto" />
         <button
           onClick={togglePlay}
           style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
@@ -407,7 +413,7 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
             <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: accent, borderRadius: 1, transition: 'width 0.1s linear' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: textColor, opacity: 0.5, letterSpacing: '0.06em' }}>
-            <span>{blocked && !playing ? 'click ▶ to play' : fmt(currentTime)}</span>
+            <span>{fmt(currentTime)}</span>
             <span>{fmt(duration)}</span>
           </div>
         </div>
