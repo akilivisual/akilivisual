@@ -324,13 +324,21 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   const textColor = (vs.player_text as string) ?? '#ffffff'
   const radius = (vs.player_radius as number) ?? 0
 
-  const audioRef = useRef<HTMLAudioElement>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [muted, setMuted] = useState(autoplay)
   const [hovered, setHovered] = useState(false)
   const [userUnmuted, setUserUnmuted] = useState(false)
+
+  // Callback ref: sets audio.muted synchronously on DOM attachment so the browser
+  // sees a muted element before evaluating autoplay policy (React's muted prop doesn't
+  // reliably set the HTML attribute, which some browsers require for muted autoplay).
+  function audioCallbackRef(el: HTMLAudioElement | null) {
+    if (el && autoplay) el.muted = true
+    audioRef.current = el
+  }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -346,10 +354,6 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
     audio.addEventListener('ended', onEnded)
     audio.addEventListener('timeupdate', onTimeUpdate)
     audio.addEventListener('loadedmetadata', onLoadedMetadata)
-    if (autoplay) {
-      audio.muted = true
-      audio.play().catch(() => {})
-    }
     return () => {
       audio.removeEventListener('play', onPlay)
       audio.removeEventListener('pause', onPause)
@@ -445,7 +449,7 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
         }} />
         {/* Controls */}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-          <audio ref={audioRef} src={src} loop={loop} preload="auto" />
+          <audio ref={audioCallbackRef} src={src} loop={loop} preload="auto" autoPlay={autoplay} />
           <button
             onClick={togglePlay}
             style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
