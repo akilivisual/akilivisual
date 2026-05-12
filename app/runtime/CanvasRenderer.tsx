@@ -43,6 +43,7 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
                 height: '100%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: depthZ + mz,
+                pointerEvents: 'none',
               }}
             >
               <ModuleWrapper mod={mod}>
@@ -81,6 +82,7 @@ function ModuleWrapper({ mod, children }: { mod: ModuleWithActors; children: Rea
         rotateX: tiltEnabled ? rotateX : 0,
         rotateY: tiltEnabled ? rotateY : 0,
         transformPerspective: tiltEnabled ? tiltPerspective : undefined,
+        pointerEvents: 'none',
       }}
       onMouseMove={tiltEnabled ? onMouseMove : undefined}
       onMouseLeave={tiltEnabled ? onMouseLeave : undefined}
