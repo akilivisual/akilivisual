@@ -59,9 +59,14 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
   }
 
   async function handleDelete(moduleId: string) {
+    const snapshot = modules
     setModules((prev) => prev.filter((m) => m.id !== moduleId))
-    await deleteModule(moduleId)
-    onSaved?.()
+    const result = await deleteModule(moduleId)
+    if (!result.ok) {
+      setModules(snapshot)
+    } else {
+      onSaved?.()
+    }
   }
 
   async function handleReorder(reordered: ModuleWithActors[]) {
