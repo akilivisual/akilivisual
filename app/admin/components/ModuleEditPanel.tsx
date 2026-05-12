@@ -571,6 +571,45 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
     )
   }
 
+  // Text block editor
+  if (module.module_type === 'text_block') {
+    return (
+      <div className="flex flex-col gap-6">
+        <Field label="Text">
+          <textarea
+            spellCheck={false}
+            className="w-full h-40 bg-white/[0.03] border border-white/10 text-sm text-white/80 p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
+            value={(props.text as string) ?? ''}
+            onChange={(e) => set('text', e.target.value)}
+            placeholder="Enter text..."
+          />
+        </Field>
+        <Field label="Color">
+          <ColorInput value={(props.color as string) ?? '#ffffff'} onChange={(v) => set('color', v)} />
+        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Font Size">
+            <NumberInput value={(props.font_size as number) ?? 24} min={8} max={300} onChange={(v) => set('font_size', v)} />
+          </Field>
+          <Field label="Font Weight">
+            <Select
+              value={(props.font_weight as string) ?? '300'}
+              options={['100', '200', '300', '400', '500', '600', '700']}
+              onChange={(v) => set('font_weight', v)}
+            />
+          </Field>
+        </div>
+        <Field label="Letter Spacing">
+          <Select
+            value={(props.letter_spacing as string) ?? '0.05em'}
+            options={['0em', '0.02em', '0.05em', '0.1em', '0.15em', '0.2em', '0.3em', '0.4em']}
+            onChange={(v) => set('letter_spacing', v)}
+          />
+        </Field>
+      </div>
+    )
+  }
+
   // Generic JSON editor for other module types
   return (
     <div className="flex flex-col gap-3">
