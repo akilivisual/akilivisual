@@ -410,6 +410,40 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
     onChange({ ...module, props: { ...props, [key]: value } })
   }
 
+  // JSON editor local state — syncs only when module changes, not on every re-render
+  const [raw, setRaw] = useState(() => JSON.stringify(module.props ?? {}, null, 2))
+  const [jsonError, setJsonError] = useState('')
+  useEffect(() => {
+    setRaw(JSON.stringify(module.props ?? {}, null, 2))
+    setJsonError('')
+  }, [module.id])
+
+  // Rich text ref and helpers for text_block
+  const textRef = useRef<HTMLTextAreaElement>(null)
+  function wrapSelection(open: string, close: string) {
+    const el = textRef.current
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const current = (props.text as string) ?? ''
+    const next = current.slice(0, start) + open + current.slice(start, end) + close + current.slice(end)
+    set('text', next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + open.length, end + open.length)
+    })
+  }
+
+  function handleJsonChange(text: string) {
+    setRaw(text)
+    try {
+      onChange({ ...module, props: JSON.parse(text) })
+      setJsonError('')
+    } catch {
+      setJsonError('Invalid JSON')
+    }
+  }
+
   // Atmosphere-specific
   if (module.module_type === 'atmosphere') {
     const spot = (props.spotlight ?? {}) as Record<string, unknown>
@@ -575,15 +609,34 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
   if (module.module_type === 'text_block') {
     return (
       <div className="flex flex-col gap-6">
-        <Field label="Text">
+        <div className="flex flex-col gap-1">
+          <p className="text-[10px] tracking-[0.15em] uppercase text-white/40">Text</p>
+          <div className="flex gap-1">
+            {[
+              { label: 'B', open: '<strong>', close: '</strong>', style: 'font-bold' },
+              { label: 'I', open: '<em>', close: '</em>', style: 'italic' },
+              { label: 'U', open: '<u>', close: '</u>', style: 'underline' },
+              { label: '↵', open: '<br/>', close: '', style: '' },
+            ].map(({ label, open, close, style }) => (
+              <button
+                key={label}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); wrapSelection(open, close) }}
+                className={`px-2 py-1 text-[10px] text-white/50 hover:text-white/80 border border-white/10 hover:border-white/25 bg-white/[0.03] transition-colors ${style}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <textarea
+            ref={textRef}
             spellCheck={false}
             className="w-full h-40 bg-white/[0.03] border border-white/10 text-sm text-white/80 p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
             value={(props.text as string) ?? ''}
             onChange={(e) => set('text', e.target.value)}
-            placeholder="Enter text..."
+            placeholder="Enter text or select text then click B / I / U to format..."
           />
-        </Field>
+        </div>
         <Field label="Color">
           <ColorInput value={(props.color as string) ?? '#ffffff'} onChange={(v) => set('color', v)} />
         </Field>
@@ -615,14 +668,12 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
     <div className="flex flex-col gap-3">
       <p className="text-[10px] tracking-[0.2em] uppercase text-white/25">Raw Props (JSON)</p>
       <textarea
+        spellCheck={false}
         className="w-full h-64 bg-white/[0.03] border border-white/10 text-[11px] text-white/60 font-mono p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
-        value={JSON.stringify(props, null, 2)}
-        onChange={(e) => {
-          try {
-            onChange({ ...module, props: JSON.parse(e.target.value) })
-          } catch {}
-        }}
+        value={raw}
+        onChange={(e) => handleJsonChange(e.target.value)}
       />
+      {jsonError && <p className="text-[10px] text-red-400/70 tracking-wide">{jsonError}</p>}
     </div>
   )
 }

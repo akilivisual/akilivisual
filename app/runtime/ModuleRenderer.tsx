@@ -46,7 +46,9 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
       return (
         <div className="absolute inset-0" style={containerStyle}>
           {text
-            ? <span style={{ color, fontSize, fontWeight, letterSpacing, whiteSpace: 'pre-wrap' }}>{text}</span>
+            ? (/<[a-z][\s\S]*>/i.test(text)
+                ? <span style={{ color, fontSize, fontWeight, letterSpacing }} dangerouslySetInnerHTML={{ __html: text }} />
+                : <span style={{ color, fontSize, fontWeight, letterSpacing, whiteSpace: 'pre-wrap' }}>{text}</span>)
             : module.actors.map((actor) => (
                 <FlexActor key={actor.id} actor={actor} moduleMotion={moduleMotion} />
               ))
