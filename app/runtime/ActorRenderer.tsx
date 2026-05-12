@@ -328,83 +328,86 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [muted, setMuted] = useState(autoplay)
+  const [muted, setMuted] = useState(true)
   const [hovered, setHovered] = useState(false)
-  // true once the user has explicitly clicked the speaker button to unmute
-  const userUnmutedRef = useRef(false)
+  // Flipped to true the moment the user explicitly presses play or the speaker button.
+  // While false, hover controls the mute state; once true, hover no longer affects it.
+  const userChoseSound = useRef(false)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    const onPlay = () => setPlaying(true)
-    const onPause = () => setPlaying(false)
-    const onEnded = () => setPlaying(false)
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime)
-    const onLoadedMetadata = () => setDuration(audio.duration)
-    audio.addEventListener('play', onPlay)
-    audio.addEventListener('pause', onPause)
-    audio.addEventListener('ended', onEnded)
-    audio.addEventListener('timeupdate', onTimeUpdate)
-    audio.addEventListener('loadedmetadata', onLoadedMetadata)
+
+    audio.addEventListener('play', () => setPlaying(true))
+    audio.addEventListener('pause', () => setPlaying(false))
+    audio.addEventListener('ended', () => setPlaying(false))
+    audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime))
+    audio.addEventListener('loadedmetadata', () => setDuration(audio.duration))
+
     if (autoplay) {
       audio.muted = true
-      audio.play().catch(() => {})
-    }
-    return () => {
-      audio.removeEventListener('play', onPlay)
-      audio.removeEventListener('pause', onPause)
-      audio.removeEventListener('ended', onEnded)
-      audio.removeEventListener('timeupdate', onTimeUpdate)
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata)
+      // Try immediately; if not ready yet, try again on canplay
+      const tryPlay = () => { audio.muted = true; audio.play().catch(() => {}) }
+      if (audio.readyState >= 2) {
+        tryPlay()
+      } else {
+        audio.addEventListener('canplay', tryPlay, { once: true })
+      }
     }
   }, [])
 
-  function togglePlay() {
+  function doUnmute() {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.muted = false
+    setMuted(false)
+  }
+
+  function doMute() {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.muted = true
+    setMuted(true)
+  }
+
+  function handlePlay() {
     const audio = audioRef.current
     if (!audio) return
     if (audio.paused) {
-      // Clicking play unmutes — user intent is to hear the audio
-      if (audio.muted) {
-        audio.muted = false
-        setMuted(false)
-        userUnmutedRef.current = true
-      }
+      // Pressing play always commits to sound — no more hover-controlled muting
+      userChoseSound.current = true
+      doUnmute()
       audio.play().catch(() => {})
     } else {
       audio.pause()
     }
   }
 
-  function toggleMute() {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.muted = !audio.muted
-    setMuted(audio.muted)
-    // Track whether user has explicitly chosen to unmute
-    userUnmutedRef.current = !audio.muted
+  function handleSpeaker() {
+    if (muted) {
+      userChoseSound.current = true
+      doUnmute()
+    } else {
+      userChoseSound.current = false
+      doMute()
+    }
   }
 
   function handleMouseEnter() {
     setHovered(true)
+    if (userChoseSound.current) return
     const audio = audioRef.current
     if (!audio) return
-    // Hover unmutes only if user hasn't already explicitly unmuted (their preference is preserved)
-    if (!userUnmutedRef.current) {
-      if (audio.muted) { audio.muted = false; setMuted(false) }
-      // Fallback: if autoplay was blocked, hover starts playback
-      if (audio.paused) audio.play().catch(() => {})
-    }
+    doUnmute()
+    // Fallback: start playing if autoplay was blocked
+    if (audio.paused) audio.play().catch(() => {})
   }
 
   function handleMouseLeave() {
     setHovered(false)
-    const audio = audioRef.current
-    // Re-mute on leave only if the user hasn't explicitly chosen to unmute
-    if (audio && !userUnmutedRef.current) {
-      audio.muted = true
-      setMuted(true)
-    }
+    if (userChoseSound.current) return
+    doMute()
   }
 
   function seek(e: React.MouseEvent<HTMLDivElement>) {
@@ -450,7 +453,7 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
           <audio ref={audioRef} src={src} loop={loop} preload="auto" />
           <button
-            onClick={togglePlay}
+            onClick={handlePlay}
             style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
           >
             {playing
@@ -459,7 +462,7 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
             }
           </button>
           <button
-            onClick={toggleMute}
+            onClick={handleSpeaker}
             style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
           >
             {muted
