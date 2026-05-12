@@ -93,11 +93,18 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
 
   if (hidden) return null
 
-  const outerStyle = { alignSelf, marginTop: mt, marginRight: mr, marginBottom: mb, marginLeft: ml }
+  const fullWidth = !!(actor.visual_schema as Record<string, unknown>)?.full_width
+  const outerStyle = {
+    alignSelf, marginTop: mt, marginRight: mr, marginBottom: mb, marginLeft: ml,
+    ...(fullWidth ? { position: 'relative' as const, width: '100%', height: '100%' } : {}),
+  }
 
   // Entrance motion — always present
   const entrance = (
-    <motion.div initial={initial} animate={animate} transition={transition}>
+    <motion.div
+      initial={initial} animate={animate} transition={transition}
+      style={fullWidth ? { width: '100%', height: '100%' } : undefined}
+    >
       <ActorRenderer actor={actor} />
     </motion.div>
   )
@@ -220,19 +227,51 @@ function TextActor({ actor }: { actor: Actor }) {
   return <span style={style}>{text}</span>
 }
 
+function buildMask(preset: string, spread: number): React.CSSProperties {
+  if (!preset || preset === 'none') return {}
+  const stop = `${Math.round(spread)}%`
+  let g = ''
+  switch (preset) {
+    case 'fade_edges':  g = `radial-gradient(ellipse at center, black ${stop}, transparent 100%)`; break
+    case 'vignette':    g = `radial-gradient(ellipse at center, transparent 0%, black ${stop}, black 100%)`; break
+    case 'fade_bottom': g = `linear-gradient(to bottom, black ${stop}, transparent 100%)`; break
+    case 'fade_top':    g = `linear-gradient(to top, black ${stop}, transparent 100%)`; break
+    case 'fade_left':   g = `linear-gradient(to left, black ${stop}, transparent 100%)`; break
+    case 'fade_right':  g = `linear-gradient(to right, black ${stop}, transparent 100%)`; break
+    case 'fade_h':      g = `linear-gradient(to right, transparent 0%, black 25%, black 75%, transparent 100%)`; break
+    case 'fade_v':      g = `linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%)`; break
+    default: return {}
+  }
+  return { WebkitMaskImage: g, maskImage: g }
+}
+
 function ImageActor({ actor }: { actor: Actor }) {
   const vs = actor.visual_schema ?? {}
   const src = vs.src as string
   const size = (vs.size as number) ?? 200
+  const fullWidth = (vs.full_width as boolean) ?? false
+  const objectFit = ((vs.object_fit as string) ?? 'cover') as React.CSSProperties['objectFit']
+  const maskStyle = buildMask((vs.mask_preset as string) ?? 'none', (vs.mask_spread as number) ?? 60)
 
   if (!src) return null
+
+  if (fullWidth) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={actor.name ?? 'image'}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit, display: 'block', ...maskStyle }}
+      />
+    )
+  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={actor.name ?? 'image'}
-      style={{ width: size, height: 'auto' }}
+      style={{ width: size, height: 'auto', ...maskStyle }}
       className="object-contain"
     />
   )
@@ -246,6 +285,9 @@ function MediaActor({ actor }: { actor: Actor }) {
   const height = (vs.height as number) ?? 300
   const autoplay = (vs.autoplay as boolean) ?? true
   const loop = (vs.loop as boolean) ?? true
+  const fullWidth = (vs.full_width as boolean) ?? false
+  const objectFit = ((vs.object_fit as string) ?? 'cover') as React.CSSProperties['objectFit']
+  const maskStyle = buildMask((vs.mask_preset as string) ?? 'none', (vs.mask_spread as number) ?? 60)
 
   if (!src) return null
 
@@ -254,20 +296,20 @@ function MediaActor({ actor }: { actor: Actor }) {
   }
 
   if (mediaType === 'video') {
+    const videoStyle = fullWidth
+      ? { position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit, ...maskStyle }
+      : { width, height, objectFit: 'cover' as const, ...maskStyle }
     return (
-      <video
-        src={src}
-        autoPlay={autoplay}
-        loop={loop}
-        muted
-        playsInline
-        style={{ width, height, objectFit: 'cover' }}
-      />
+      <video src={src} autoPlay={autoplay} loop={loop} muted playsInline style={videoStyle} />
     )
   }
 
+  // gif
+  const gifStyle = fullWidth
+    ? { position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit, display: 'block', ...maskStyle }
+    : { width, height: 'auto' as const, ...maskStyle }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={actor.name ?? 'media'} style={{ width, height: 'auto' }} className="object-contain" />
+  return <img src={src} alt={actor.name ?? 'media'} style={gifStyle} className={fullWidth ? undefined : 'object-contain'} />
 }
 
 function EmbedActor({ actor }: { actor: Actor }) {

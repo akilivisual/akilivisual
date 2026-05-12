@@ -1109,9 +1109,45 @@ function ActorEditor({
                       }}
                     />
                   </Field>
-                  <Field label="Size (px)">
-                    <NumberInput value={(vs.size as number) ?? 200} min={20} max={1200} onChange={(v) => setVS('size', v)} />
+                  {!(vs.full_width as boolean) && (
+                    <Field label="Size (px)">
+                      <NumberInput value={(vs.size as number) ?? 200} min={20} max={1200} onChange={(v) => setVS('size', v)} />
+                    </Field>
+                  )}
+                  <Field label="Full Width">
+                    <Toggle value={(vs.full_width as boolean) ?? false} onChange={(v) => setVS('full_width', v)} />
                   </Field>
+                  {(vs.full_width as boolean) && (
+                    <Field label="Object Fit">
+                      <Select
+                        value={(vs.object_fit as string) ?? 'cover'}
+                        options={[{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }]}
+                        onChange={(v) => setVS('object_fit', v)}
+                      />
+                    </Field>
+                  )}
+                  <Field label="Mask">
+                    <Select
+                      value={(vs.mask_preset as string) ?? 'none'}
+                      options={[
+                        { value: 'none',        label: 'None' },
+                        { value: 'fade_edges',  label: 'Fade Edges' },
+                        { value: 'vignette',    label: 'Vignette' },
+                        { value: 'fade_bottom', label: 'Fade Bottom' },
+                        { value: 'fade_top',    label: 'Fade Top' },
+                        { value: 'fade_left',   label: 'Fade Left' },
+                        { value: 'fade_right',  label: 'Fade Right' },
+                        { value: 'fade_h',      label: 'Fade H Edges' },
+                        { value: 'fade_v',      label: 'Fade V Edges' },
+                      ]}
+                      onChange={(v) => setVS('mask_preset', v)}
+                    />
+                  </Field>
+                  {(vs.mask_preset as string) && (vs.mask_preset as string) !== 'none' && (
+                    <Field label="Spread">
+                      <SliderInput value={(vs.mask_spread as number) ?? 60} min={0} max={100} step={1} onChange={(v) => setVS('mask_spread', v)} />
+                    </Field>
+                  )}
                 </div>
               )}
 
@@ -1157,14 +1193,52 @@ function ActorEditor({
                     />
                   </Field>
                   {(vs.media_type as string) !== 'audio' && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="Width (px)">
-                        <NumberInput value={(vs.width as number) ?? 400} min={50} max={3840} onChange={(v) => setVS('width', v)} />
+                    <>
+                      {!(vs.full_width as boolean) && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <Field label="Width (px)">
+                            <NumberInput value={(vs.width as number) ?? 400} min={50} max={3840} onChange={(v) => setVS('width', v)} />
+                          </Field>
+                          <Field label="Height (px)">
+                            <NumberInput value={(vs.height as number) ?? 300} min={50} max={2160} onChange={(v) => setVS('height', v)} />
+                          </Field>
+                        </div>
+                      )}
+                      <Field label="Full Width">
+                        <Toggle value={(vs.full_width as boolean) ?? false} onChange={(v) => setVS('full_width', v)} />
                       </Field>
-                      <Field label="Height (px)">
-                        <NumberInput value={(vs.height as number) ?? 300} min={50} max={2160} onChange={(v) => setVS('height', v)} />
+                      {(vs.full_width as boolean) && (
+                        <Field label="Object Fit">
+                          <Select
+                            value={(vs.object_fit as string) ?? 'cover'}
+                            options={[{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }]}
+                            onChange={(v) => setVS('object_fit', v)}
+                          />
+                        </Field>
+                      )}
+                      <Field label="Mask">
+                        <Select
+                          value={(vs.mask_preset as string) ?? 'none'}
+                          options={[
+                            { value: 'none',        label: 'None' },
+                            { value: 'fade_edges',  label: 'Fade Edges' },
+                            { value: 'vignette',    label: 'Vignette' },
+                            { value: 'fade_bottom', label: 'Fade Bottom' },
+                            { value: 'fade_top',    label: 'Fade Top' },
+                            { value: 'fade_left',   label: 'Fade Left' },
+                            { value: 'fade_right',  label: 'Fade Right' },
+                            { value: 'fade_h',      label: 'Fade H Edges' },
+                            { value: 'fade_v',      label: 'Fade V Edges' },
+                          ]}
+                          onChange={(v) => setVS('mask_preset', v)}
+                        />
                       </Field>
-                    </div>
+                      {(vs.mask_preset as string) && (vs.mask_preset as string) !== 'none' && (
+                        <Field label="Spread">
+                          <SliderInput value={(vs.mask_spread as number) ?? 60} min={0} max={100} step={1} onChange={(v) => setVS('mask_spread', v)} />
+                        </Field>
+                      )}
+                    </>
                   )}
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Autoplay">
@@ -1553,16 +1627,19 @@ function SliderInput({
   )
 }
 
-function Select({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+type SelectOption = string | { value: string; label: string }
+function Select({ value, options, onChange }: { value: string; options: SelectOption[]; onChange: (v: string) => void }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="w-full bg-black border-b border-white/10 text-white/80 text-sm py-1.5 focus:outline-none focus:border-white/35 transition-colors"
     >
-      {options.map((o) => (
-        <option key={o} value={o}>{o}</option>
-      ))}
+      {options.map((o) => {
+        const v = typeof o === 'string' ? o : o.value
+        const l = typeof o === 'string' ? o : o.label
+        return <option key={v} value={v}>{l}</option>
+      })}
     </select>
   )
 }

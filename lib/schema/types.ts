@@ -192,6 +192,12 @@ export interface VisualSchema {
   embed_type?: string
   url?: string
   html?: string
+  // image / media layout
+  full_width?: boolean
+  object_fit?: string
+  // gradient edge mask
+  mask_preset?: string
+  mask_spread?: number
 }
 
 export interface MotionProfileData {
