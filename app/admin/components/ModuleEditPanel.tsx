@@ -1132,8 +1132,29 @@ function ActorEditor({
                       onChange={(v) => setVS('media_type', v)}
                     />
                   </Field>
-                  <Field label="Source URL">
-                    <Input value={(vs.src as string) ?? ''} onChange={(v) => setVS('src', v)} placeholder="https://..." />
+                  <Field label="Media">
+                    <MediaPickerField
+                      src={(vs.src as string) ?? ''}
+                      mediaType={(vs.media_type as string) ?? 'video'}
+                      onSrcChange={(url) => setVS('src', url)}
+                      onPick={async (url) => {
+                        const updatedActor = { ...actor, visual_schema: { ...vs, src: url } }
+                        setActor(updatedActor)
+                        setSaving(true)
+                        setSaveError('')
+                        try {
+                          const result = await updateActor(updatedActor.id, {
+                            visual_schema: updatedActor.visual_schema as Record<string, unknown>,
+                          })
+                          if (result.ok) onActorSaved(updatedActor)
+                          else setSaveError(result.error ?? 'Save failed')
+                        } catch (e) {
+                          setSaveError(e instanceof Error ? e.message : 'Save failed')
+                        } finally {
+                          setSaving(false)
+                        }
+                      }}
+                    />
                   </Field>
                   {(vs.media_type as string) !== 'audio' && (
                     <div className="grid grid-cols-2 gap-4">
@@ -1282,10 +1303,12 @@ function MediaPickerField({
   src,
   onSrcChange,
   onPick,
+  mediaType = 'image',
 }: {
   src: string
   onSrcChange: (url: string) => void
   onPick?: (url: string) => void
+  mediaType?: string
 }) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -1293,6 +1316,12 @@ function MediaPickerField({
   const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
   const [loadingLibrary, setLoadingLibrary] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const isVideo = mediaType === 'video'
+  const isAudio = mediaType === 'audio'
+  const assetTypeForUpload = isVideo ? 'video' : isAudio ? 'audio' : 'image'
+  const assetTypeFilter = isVideo ? 'video' : isAudio ? 'audio' : 'image'
+  const acceptAttr = isVideo ? 'video/*' : isAudio ? 'audio/*' : mediaType === 'gif' ? 'image/gif' : 'image/*'
 
   function pick(url: string) {
     onSrcChange(url)
@@ -1309,7 +1338,7 @@ function MediaPickerField({
       const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: false })
       if (error) { setUploadError(error.message); return }
       const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
-      await createMediaAsset(publicUrl, 'image', file.name.replace(/\.[^.]+$/, ''), path)
+      await createMediaAsset(publicUrl, assetTypeForUpload, file.name.replace(/\.[^.]+$/, ''), path)
       pick(publicUrl)
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : 'Upload failed')
@@ -1322,13 +1351,19 @@ function MediaPickerField({
     setShowLibrary(true)
     setLoadingLibrary(true)
     const assets = await listMediaAssets()
-    setLibraryAssets(assets.filter((a) => a.asset_type === 'image'))
+    setLibraryAssets(assets.filter((a) => a.asset_type === assetTypeFilter))
     setLoadingLibrary(false)
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {src && (
+      {src && isVideo && (
+        <video src={src} className="w-full max-h-28 object-contain border border-white/10 bg-white/[0.02]" muted playsInline />
+      )}
+      {src && isAudio && (
+        <audio src={src} controls className="w-full" />
+      )}
+      {src && !isVideo && !isAudio && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" className="w-full max-h-28 object-contain border border-white/10 bg-white/[0.02]" />
       )}
@@ -1356,7 +1391,7 @@ function MediaPickerField({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept={acceptAttr}
           className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
         />
@@ -1369,18 +1404,34 @@ function MediaPickerField({
           {loadingLibrary ? (
             <p className="text-[10px] text-white/20 text-center py-4 animate-pulse">Loading...</p>
           ) : libraryAssets.length === 0 ? (
-            <p className="text-[10px] text-white/20 text-center py-4">No image assets in library</p>
+            <p className="text-[10px] text-white/20 text-center py-4">No {assetTypeFilter} assets in library</p>
+          ) : isAudio ? (
+            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+              {libraryAssets.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => { pick(a.url); setShowLibrary(false) }}
+                  className={`px-2 py-2 text-left border text-[10px] tracking-wide truncate transition-colors ${src === a.url ? 'border-white/40 text-white/80' : 'border-white/10 text-white/40 hover:border-white/30 hover:text-white/70'}`}
+                >
+                  {a.title ?? a.url}
+                </button>
+              ))}
+            </div>
           ) : (
             <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
               {libraryAssets.map((a) => (
                 <button
                   key={a.id}
                   onClick={() => { pick(a.url); setShowLibrary(false) }}
-                  className="border border-white/10 hover:border-white/40 transition-colors overflow-hidden group relative"
+                  className="border border-white/10 hover:border-white/40 transition-colors overflow-hidden relative"
                   title={a.title ?? a.url}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.url} alt={a.title ?? ''} className="w-full h-16 object-cover" />
+                  {isVideo ? (
+                    <video src={a.url} className="w-full h-16 object-cover" muted playsInline />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.url} alt={a.title ?? ''} className="w-full h-16 object-cover" />
+                  )}
                   {src === a.url && (
                     <div className="absolute inset-0 border-2 border-white/60 pointer-events-none" />
                   )}
