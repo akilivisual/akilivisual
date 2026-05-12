@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import type { Actor } from '@/lib/schema/types'
 import { useMagnetic } from './hooks/useMagnetic'
@@ -249,7 +250,7 @@ function MediaActor({ actor }: { actor: Actor }) {
   if (!src) return null
 
   if (mediaType === 'audio') {
-    return <audio src={src} autoPlay={autoplay} loop={loop} controls />
+    return <CustomAudioPlayer actor={actor} />
   }
 
   if (mediaType === 'video') {
@@ -306,6 +307,116 @@ function EmbedActor({ actor }: { actor: Actor }) {
   return (
     <div style={containerStyle}>
       <iframe src={url} sandbox="allow-same-origin" loading="lazy" style={{ width: '100%', height: '100%', border: 'none' }} />
+    </div>
+  )
+}
+
+function CustomAudioPlayer({ actor }: { actor: Actor }) {
+  const vs = actor.visual_schema ?? {}
+  const src = vs.src as string
+  const loop = (vs.loop as boolean) ?? true
+  const autoplay = (vs.autoplay as boolean) ?? true
+  const width = (vs.width as number) ?? 320
+  const bg = (vs.player_bg as string) ?? '#000000'
+  const bgOpacity = (vs.player_bg_opacity as number) ?? 0.6
+  const bgImage = vs.player_bg_image as string | undefined
+  const accent = (vs.player_accent as string) ?? '#ffffff'
+  const textColor = (vs.player_text as string) ?? '#ffffff'
+  const radius = (vs.player_radius as number) ?? 0
+
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [blocked, setBlocked] = useState(false)
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !autoplay) return
+    audio.play().then(() => setPlaying(true)).catch(() => setBlocked(true))
+  }, [autoplay, src])
+
+  function togglePlay() {
+    const audio = audioRef.current
+    if (!audio) return
+    if (playing) {
+      audio.pause()
+    } else {
+      audio.play().then(() => setBlocked(false)).catch(() => {})
+    }
+  }
+
+  function seek(e: React.MouseEvent<HTMLDivElement>) {
+    const audio = audioRef.current
+    if (!audio || !audio.duration) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration
+  }
+
+  function fmt(s: number) {
+    if (!isFinite(s) || isNaN(s)) return '0:00'
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60).toString().padStart(2, '0')
+    return `${m}:${sec}`
+  }
+
+  if (!src) return null
+
+  const progress = duration ? currentTime / duration : 0
+
+  return (
+    <div style={{ width, position: 'relative', borderRadius: radius, overflow: 'hidden' }}>
+      {/* Skinnable background layer — separate from content so opacity doesn't bleed */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundColor: bg,
+        opacity: bgOpacity,
+        backgroundImage: bgImage ? `url(${bgImage})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }} />
+      {/* Controls */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+        <audio
+          ref={audioRef}
+          src={src}
+          loop={loop}
+          onTimeUpdate={() => { const a = audioRef.current; if (a) setCurrentTime(a.currentTime) }}
+          onLoadedMetadata={() => { const a = audioRef.current; if (a) setDuration(a.duration) }}
+          onEnded={() => setPlaying(false)}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+        />
+        <button
+          onClick={togglePlay}
+          style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
+        >
+          {playing
+            ? <svg width="14" height="14" viewBox="0 0 14 14" fill={accent}><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>
+            : <svg width="14" height="14" viewBox="0 0 14 14" fill={accent}><polygon points="2,1 13,7 2,13"/></svg>
+          }
+        </button>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div
+            onClick={seek}
+            style={{ height: 2, backgroundColor: `${accent}33`, borderRadius: 1, cursor: 'pointer', position: 'relative' }}
+          >
+            <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: accent, borderRadius: 1, transition: 'width 0.1s linear' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: textColor, opacity: 0.5, letterSpacing: '0.06em' }}>
+            <span>{fmt(currentTime)}</span>
+            <span>{fmt(duration)}</span>
+          </div>
+        </div>
+      </div>
+      {blocked && (
+        <div
+          onClick={togglePlay}
+          style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'rgba(0,0,0,0.4)', borderRadius: radius }}
+        >
+          <span style={{ color: textColor, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Tap to play</span>
+        </div>
+      )}
     </div>
   )
 }

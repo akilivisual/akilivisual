@@ -1174,6 +1174,43 @@ function ActorEditor({
                       <Toggle value={(vs.loop as boolean) ?? true} onChange={(v) => setVS('loop', v)} />
                     </Field>
                   </div>
+
+                  {(vs.media_type as string) === 'audio' && (
+                    <>
+                      <Divider label="Player Style" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <Field label="Background">
+                          <ColorInput value={(vs.player_bg as string) ?? '#000000'} onChange={(v) => setVS('player_bg', v)} />
+                        </Field>
+                        <Field label="Accent">
+                          <ColorInput value={(vs.player_accent as string) ?? '#ffffff'} onChange={(v) => setVS('player_accent', v)} />
+                        </Field>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Field label="Text">
+                          <ColorInput value={(vs.player_text as string) ?? '#ffffff'} onChange={(v) => setVS('player_text', v)} />
+                        </Field>
+                        <Field label="BG Opacity">
+                          <SliderInput value={(vs.player_bg_opacity as number) ?? 0.6} min={0} max={1} step={0.01} onChange={(v) => setVS('player_bg_opacity', v)} />
+                        </Field>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Field label="Width (px)">
+                          <NumberInput value={(vs.width as number) ?? 320} min={160} max={800} onChange={(v) => setVS('width', v)} />
+                        </Field>
+                        <Field label="Corner Radius">
+                          <NumberInput value={(vs.player_radius as number) ?? 0} min={0} max={50} onChange={(v) => setVS('player_radius', v)} />
+                        </Field>
+                      </div>
+                      <Field label="BG Image">
+                        <MediaPickerField
+                          src={(vs.player_bg_image as string) ?? ''}
+                          mediaType="image"
+                          onSrcChange={(url) => setVS('player_bg_image', url || undefined)}
+                        />
+                      </Field>
+                    </>
+                  )}
                 </div>
               )}
 

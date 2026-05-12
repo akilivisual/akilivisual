@@ -181,6 +181,13 @@ export interface VisualSchema {
   height?: number
   autoplay?: boolean
   loop?: boolean
+  // audio player skin
+  player_bg?: string
+  player_bg_opacity?: number
+  player_bg_image?: string
+  player_accent?: string
+  player_text?: string
+  player_radius?: number
   // embed actor
   embed_type?: string
   url?: string
