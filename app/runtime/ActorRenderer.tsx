@@ -250,7 +250,11 @@ function MediaActor({ actor }: { actor: Actor }) {
   if (!src) return null
 
   if (mediaType === 'audio') {
-    return <CustomAudioPlayer actor={actor} />
+    return (
+      <div style={{ pointerEvents: 'auto' }}>
+        <audio src={src} controls loop={loop} autoPlay={autoplay} style={{ width: (vs.width as number) ?? 320 }} />
+      </div>
+    )
   }
 
   if (mediaType === 'video') {
