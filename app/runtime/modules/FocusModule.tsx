@@ -33,6 +33,7 @@ export function FocusModule({ module }: FocusModuleProps) {
         paddingRight: pr,
         paddingBottom: pb,
         paddingLeft: pl,
+        pointerEvents: 'none',
       }}
     >
       {module.actors.map((actor) => (

@@ -368,7 +368,7 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   const progress = duration ? currentTime / duration : 0
 
   return (
-    <div style={{ width, position: 'relative', borderRadius: radius, overflow: 'hidden' }}>
+    <div style={{ width, position: 'relative', borderRadius: radius, overflow: 'hidden', pointerEvents: 'auto' }}>
       {/* Skinnable background layer — separate from content so opacity doesn't bleed */}
       <div style={{
         position: 'absolute', inset: 0,

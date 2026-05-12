@@ -42,6 +42,7 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
         paddingRight: (layout.padding_right as number) ?? 0,
         paddingBottom: (layout.padding_bottom as number) ?? 0,
         paddingLeft: (layout.padding_left as number) ?? 0,
+        pointerEvents: 'none' as const,
       }
       return (
         <div className="absolute inset-0" style={containerStyle}>
@@ -72,6 +73,7 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
             paddingRight: (layout.padding_right as number) ?? 0,
             paddingBottom: (layout.padding_bottom as number) ?? 0,
             paddingLeft: (layout.padding_left as number) ?? 0,
+            pointerEvents: 'none',
           }}
         >
           {module.actors.map((actor) => (
