@@ -363,6 +363,12 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
     const audio = audioRef.current
     if (!audio) return
     if (audio.paused) {
+      // Unmute when user explicitly presses play — their intent is sound
+      if (audio.muted) {
+        audio.muted = false
+        setMuted(false)
+        setUserUnmuted(true)
+      }
       audio.play().catch(() => {})
     } else {
       audio.pause()
@@ -380,10 +386,13 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   function handleMouseEnter() {
     setHovered(true)
     const audio = audioRef.current
-    if (audio && audio.muted && !userUnmuted) {
+    if (!audio || userUnmuted) return
+    if (audio.muted) {
       audio.muted = false
       setMuted(false)
     }
+    // Also start playing if autoplay failed (e.g. deployment blocked it)
+    if (audio.paused) audio.play().catch(() => {})
   }
 
   function handleMouseLeave() {
