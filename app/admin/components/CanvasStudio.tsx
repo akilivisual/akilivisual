@@ -99,6 +99,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
           src={`/preview/${canvas.slug}`}
           className="w-full h-full border-none"
           title={canvas.title}
+          allow="autoplay"
         />
       </div>
 

@@ -342,7 +342,10 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
     if (playing) {
       audio.pause()
     } else {
-      audio.play().then(() => setBlocked(false)).catch(() => {})
+      audio.play().then(() => setBlocked(false)).catch((err) => {
+        // NotAllowedError = browser policy; anything else is a real problem
+        if (err?.name !== 'NotAllowedError') console.warn('[audio]', err)
+      })
     }
   }
 
@@ -404,19 +407,11 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
             <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: accent, borderRadius: 1, transition: 'width 0.1s linear' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: textColor, opacity: 0.5, letterSpacing: '0.06em' }}>
-            <span>{fmt(currentTime)}</span>
+            <span>{blocked && !playing ? 'click ▶ to play' : fmt(currentTime)}</span>
             <span>{fmt(duration)}</span>
           </div>
         </div>
       </div>
-      {blocked && (
-        <div
-          onClick={togglePlay}
-          style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'rgba(0,0,0,0.4)', borderRadius: radius }}
-        >
-          <span style={{ color: textColor, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Tap to play</span>
-        </div>
-      )}
     </div>
   )
 }
