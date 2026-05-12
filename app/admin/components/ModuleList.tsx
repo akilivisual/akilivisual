@@ -199,10 +199,10 @@ function DraggableModule({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 min-w-0 mr-3">
           {/* Drag handle */}
           <div
-            className="flex flex-col gap-[3px] cursor-grab active:cursor-grabbing px-1 py-1 opacity-30 hover:opacity-70 transition-opacity"
+            className="shrink-0 flex flex-col gap-[3px] cursor-grab active:cursor-grabbing px-1 py-1 opacity-30 hover:opacity-70 transition-opacity"
             onPointerDown={(e) => controls.start(e)}
           >
             <span className="w-3 h-px bg-white block" />
@@ -210,14 +210,14 @@ function DraggableModule({
             <span className="w-3 h-px bg-white block" />
           </div>
 
-          <span className="text-[10px] text-white/20 w-4">{index + 1}</span>
+          <span className="shrink-0 text-[10px] text-white/20 w-4">{index + 1}</span>
 
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm tracking-wide text-white">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-sm tracking-wide text-white truncate">
                 {module.name ?? module.module_type}
               </span>
-              <span className="text-[10px] tracking-[0.15em] uppercase text-white/25 border border-white/10 px-2 py-0.5">
+              <span className="shrink-0 text-[10px] tracking-[0.15em] uppercase text-white/25 border border-white/10 px-2 py-0.5">
                 {module.module_type}
               </span>
             </div>
@@ -227,7 +227,7 @@ function DraggableModule({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="shrink-0 flex items-center gap-3">
           <span className="text-[10px] tracking-[0.15em] uppercase text-white/25">
             {module.actors.length} {module.actors.length === 1 ? 'actor' : 'actors'}
           </span>
