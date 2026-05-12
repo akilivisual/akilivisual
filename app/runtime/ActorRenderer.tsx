@@ -328,6 +328,9 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [muted, setMuted] = useState(autoplay)
+  const [hovered, setHovered] = useState(false)
+  const [userUnmuted, setUserUnmuted] = useState(false)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -343,7 +346,10 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
     audio.addEventListener('ended', onEnded)
     audio.addEventListener('timeupdate', onTimeUpdate)
     audio.addEventListener('loadedmetadata', onLoadedMetadata)
-    if (autoplay) audio.play().catch(() => {})
+    if (autoplay) {
+      audio.muted = true
+      audio.play().catch(() => {})
+    }
     return () => {
       audio.removeEventListener('play', onPlay)
       audio.removeEventListener('pause', onPause)
@@ -356,11 +362,36 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   function togglePlay() {
     const audio = audioRef.current
     if (!audio) return
-    // Use audio.paused (DOM truth) — never the React playing state, which can drift
     if (audio.paused) {
       audio.play().catch(() => {})
     } else {
       audio.pause()
+    }
+  }
+
+  function toggleMute() {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.muted = !audio.muted
+    setMuted(audio.muted)
+    setUserUnmuted(!audio.muted)
+  }
+
+  function handleMouseEnter() {
+    setHovered(true)
+    const audio = audioRef.current
+    if (audio && audio.muted && !userUnmuted) {
+      audio.muted = false
+      setMuted(false)
+    }
+  }
+
+  function handleMouseLeave() {
+    setHovered(false)
+    const audio = audioRef.current
+    if (audio && !userUnmuted) {
+      audio.muted = true
+      setMuted(true)
     }
   }
 
@@ -383,41 +414,68 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   const progress = duration ? currentTime / duration : 0
 
   return (
-    <div style={{ width, position: 'relative', borderRadius: radius, overflow: 'hidden', pointerEvents: 'auto' }}>
-      {/* Skinnable background layer — separate from content so opacity doesn't bleed */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundColor: bg,
-        opacity: bgOpacity,
-        backgroundImage: bgImage ? `url(${bgImage})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }} />
-      {/* Controls */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-        <audio ref={audioRef} src={src} loop={loop} preload="auto" />
-        <button
-          onClick={togglePlay}
-          style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
-        >
-          {playing
-            ? <svg width="14" height="14" viewBox="0 0 14 14" fill={accent}><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>
-            : <svg width="14" height="14" viewBox="0 0 14 14" fill={accent}><polygon points="2,1 13,7 2,13"/></svg>
-          }
-        </button>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <div
-            onClick={seek}
-            style={{ height: 2, backgroundColor: `${accent}33`, borderRadius: 1, cursor: 'pointer', position: 'relative' }}
+    <motion.div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      animate={{
+        scale: hovered ? 1.02 : 1,
+        boxShadow: hovered ? `0 0 20px ${accent}22` : '0 0 0px transparent',
+      }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      style={{ pointerEvents: 'auto', borderRadius: radius, display: 'inline-block' }}
+    >
+      <div style={{ width, position: 'relative', borderRadius: radius, overflow: 'hidden' }}>
+        {/* Skinnable background layer — separate from content so opacity doesn't bleed */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundColor: bg,
+          opacity: bgOpacity,
+          backgroundImage: bgImage ? `url(${bgImage})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }} />
+        {/* Controls */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+          <audio ref={audioRef} src={src} loop={loop} preload="auto" />
+          <button
+            onClick={togglePlay}
+            style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
           >
-            <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: accent, borderRadius: 1, transition: 'width 0.1s linear' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: textColor, opacity: 0.5, letterSpacing: '0.06em' }}>
-            <span>{fmt(currentTime)}</span>
-            <span>{fmt(duration)}</span>
+            {playing
+              ? <svg width="14" height="14" viewBox="0 0 14 14" fill={accent}><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>
+              : <svg width="14" height="14" viewBox="0 0 14 14" fill={accent}><polygon points="2,1 13,7 2,13"/></svg>
+            }
+          </button>
+          <button
+            onClick={toggleMute}
+            style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0 }}
+          >
+            {muted
+              ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <polygon points="1,4 5,4 9,1 9,13 5,10 1,10" fill={accent}/>
+                  <line x1="11" y1="4" x2="13" y2="10" stroke={accent} strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="13" y1="4" x2="11" y2="10" stroke={accent} strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              : <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <polygon points="1,4 5,4 9,1 9,13 5,10 1,10" fill={accent}/>
+                  <path d="M11,3.5 Q14,7 11,10.5" stroke={accent} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                </svg>
+            }
+          </button>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div
+              onClick={seek}
+              style={{ height: 2, backgroundColor: `${accent}33`, borderRadius: 1, cursor: 'pointer', position: 'relative' }}
+            >
+              <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: accent, borderRadius: 1, transition: 'width 0.1s linear' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: textColor, opacity: 0.5, letterSpacing: '0.06em' }}>
+              <span>{fmt(currentTime)}</span>
+              <span>{fmt(duration)}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
