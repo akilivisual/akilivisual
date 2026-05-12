@@ -9,7 +9,7 @@ import { getSupabase } from '@/lib/supabase/client'
 
 // ── Types ────────────────────────────────────────────────────────────
 
-type Tab = 'layout' | 'motion' | 'props' | 'actors'
+type Tab = 'layout' | 'interactions' | 'motion' | 'props' | 'actors'
 
 interface Props {
   module: ModuleWithActors
@@ -20,10 +20,11 @@ interface Props {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'layout', label: 'Layout' },
-  { id: 'motion', label: 'Motion' },
-  { id: 'props', label: 'Props' },
-  { id: 'actors', label: 'Actors' },
+  { id: 'layout',       label: 'Layout' },
+  { id: 'interactions', label: 'Interact' },
+  { id: 'motion',       label: 'Motion' },
+  { id: 'props',        label: 'Props' },
+  { id: 'actors',       label: 'Actors' },
 ]
 
 const DEPTH_LAYERS = ['background', 'midground', 'foreground']
@@ -141,6 +142,9 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
           {tab === 'layout' && (
             <LayoutTab module={module} onChange={setModule} />
           )}
+          {tab === 'interactions' && (
+            <InteractionsTab module={module} onChange={setModule} />
+          )}
           {tab === 'motion' && (
             <MotionTab module={module} onChange={setModule} />
           )}
@@ -184,13 +188,9 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
   const pos = (module.position ?? {}) as Record<string, number>
   const props = (module.props ?? {}) as Record<string, unknown>
   const layout = (props.layout ?? {}) as Record<string, unknown>
-  const ip = (module.interaction_profile ?? {}) as Record<string, unknown>
 
   function setLayout(key: string, value: unknown) {
     onChange({ ...module, props: { ...props, layout: { ...layout, [key]: value } } })
-  }
-  function setIP(key: string, value: unknown) {
-    onChange({ ...module, interaction_profile: { ...ip, [key]: value } as ModuleWithActors['interaction_profile'] })
   }
 
   const direction = (layout.direction as string) ?? 'column'
@@ -318,6 +318,65 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
         />
       </Field>
 
+    </div>
+  )
+}
+
+// ── Interactions Tab ─────────────────────────────────────────────────
+
+const CLICK_ACTIONS = [
+  { value: 'none',            label: 'None' },
+  { value: 'navigate_canvas', label: 'Navigate to Canvas' },
+  { value: 'external_link',   label: 'External Link' },
+]
+
+function InteractionsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m: ModuleWithActors) => void }) {
+  const ip = (module.interaction_profile ?? {}) as Record<string, unknown>
+
+  function setIP(key: string, value: unknown) {
+    onChange({ ...module, interaction_profile: { ...ip, [key]: value } as ModuleWithActors['interaction_profile'] })
+  }
+
+  const clickAction = (ip.click_action as string) ?? 'none'
+
+  return (
+    <div className="flex flex-col gap-6">
+
+      <Divider label="On Click" />
+
+      <Field label="Action">
+        <Select
+          value={clickAction}
+          options={CLICK_ACTIONS}
+          onChange={(v) => setIP('click_action', v)}
+        />
+      </Field>
+
+      {clickAction === 'navigate_canvas' && (
+        <Field label="Canvas Slug">
+          <Input
+            value={(ip.click_target as string) ?? ''}
+            onChange={(v) => setIP('click_target', v)}
+            placeholder="e.g. canvas_0002"
+          />
+        </Field>
+      )}
+
+      {clickAction === 'external_link' && (
+        <>
+          <Field label="URL">
+            <Input
+              value={(ip.click_target as string) ?? ''}
+              onChange={(v) => setIP('click_target', v)}
+              placeholder="https://..."
+            />
+          </Field>
+          <Field label="Open in New Tab">
+            <Toggle value={(ip.click_new_tab as boolean) ?? false} onChange={(v) => setIP('click_new_tab', v)} />
+          </Field>
+        </>
+      )}
+
       <Divider label="Parallax" />
       <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Module drifts with the cursor. Depth layer sets direction and speed.</p>
       <Field label="Parallax">
@@ -344,6 +403,13 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
           </Field>
         </div>
       )}
+
+      <Divider label="On Hover" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Hover-triggered actions coming soon.</p>
+      <Field label="Action">
+        <Select value="none" options={[{ value: 'none', label: 'None' }]} onChange={() => {}} />
+      </Field>
+
     </div>
   )
 }

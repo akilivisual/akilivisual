@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchAllCanvases } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
 import { PointerProvider } from './context/PointerContext'
+import { NavigationProvider } from './context/NavigationContext'
 import type { CanvasWithModules } from '@/lib/schema/types'
 
 export function StageCarousel() {
@@ -51,39 +52,41 @@ export function StageCarousel() {
   }
 
   return (
-    <>
-      {/* Scroll container */}
-      <div className="h-screen overflow-y-scroll snap-y snap-mandatory">
-        {canvases.map((canvas, i) => (
-          <div
-            key={canvas.id}
-            ref={(el) => { sectionRefs.current[i] = el }}
-            className="relative w-full h-screen snap-start overflow-hidden bg-black"
-          >
-            <PointerProvider>
-              <CanvasRenderer canvas={canvas} />
-            </PointerProvider>
-          </div>
-        ))}
-      </div>
-
-      {/* Dot navigator — only shown when there's more than one canvas */}
-      {canvases.length > 1 && (
-        <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50">
+    <NavigationProvider canvases={canvases} sectionRefs={sectionRefs}>
+      <>
+        {/* Scroll container */}
+        <div className="h-screen overflow-y-scroll snap-y snap-mandatory">
           {canvases.map((canvas, i) => (
-            <button
+            <div
               key={canvas.id}
-              onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth' })}
-              title={canvas.title}
-              className={`w-1.5 rounded-full transition-all duration-500 ${
-                i === activeIndex
-                  ? 'h-5 bg-white'
-                  : 'h-1.5 bg-white/25 hover:bg-white/50'
-              }`}
-            />
+              ref={(el) => { sectionRefs.current[i] = el }}
+              className="relative w-full h-screen snap-start overflow-hidden bg-black"
+            >
+              <PointerProvider>
+                <CanvasRenderer canvas={canvas} />
+              </PointerProvider>
+            </div>
           ))}
         </div>
-      )}
-    </>
+
+        {/* Dot navigator — only shown when there's more than one canvas */}
+        {canvases.length > 1 && (
+          <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50">
+            {canvases.map((canvas, i) => (
+              <button
+                key={canvas.id}
+                onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth' })}
+                title={canvas.title}
+                className={`w-1.5 rounded-full transition-all duration-500 ${
+                  i === activeIndex
+                    ? 'h-5 bg-white'
+                    : 'h-1.5 bg-white/25 hover:bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </>
+    </NavigationProvider>
   )
 }

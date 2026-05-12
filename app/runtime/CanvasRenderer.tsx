@@ -5,6 +5,7 @@ import type { CanvasWithModules, ModuleWithActors } from '@/lib/schema/types'
 import { ModuleRenderer } from './ModuleRenderer'
 import { useParallax } from './hooks/useParallax'
 import { useTilt } from './hooks/useTilt'
+import { useNavigation } from './context/NavigationContext'
 
 interface CanvasRendererProps {
   canvas: CanvasWithModules
@@ -68,6 +69,18 @@ function ModuleWrapper({ mod, children }: { mod: ModuleWithActors; children: Rea
   const tiltMax = (ip.tilt_max as number) ?? 8
   const tiltPerspective = (ip.tilt_perspective as number) ?? 800
 
+  const clickAction = (ip.click_action as string) ?? 'none'
+  const clickTarget = (ip.click_target as string) ?? ''
+  const clickNewTab = (ip.click_new_tab as boolean) ?? false
+  const clickable = clickAction !== 'none' && !!clickTarget
+
+  const { navigateTo } = useNavigation()
+
+  function handleClick() {
+    if (clickAction === 'navigate_canvas') navigateTo(clickTarget)
+    else if (clickAction === 'external_link') window.open(clickTarget, clickNewTab ? '_blank' : '_self')
+  }
+
   // Always called — hooks are stable regardless of enabled flags
   const { px, py } = useParallax(mod.depth_layer ?? 'midground', parallaxEnabled ? strength : 0)
   const { rotateX, rotateY, onMouseMove, onMouseLeave } = useTilt(tiltEnabled ? tiltMax : 0)
@@ -82,10 +95,12 @@ function ModuleWrapper({ mod, children }: { mod: ModuleWithActors; children: Rea
         rotateX: tiltEnabled ? rotateX : 0,
         rotateY: tiltEnabled ? rotateY : 0,
         transformPerspective: tiltEnabled ? tiltPerspective : undefined,
-        pointerEvents: 'none',
+        pointerEvents: clickable ? 'auto' : 'none',
+        cursor: clickable ? 'pointer' : undefined,
       }}
       onMouseMove={tiltEnabled ? onMouseMove : undefined}
       onMouseLeave={tiltEnabled ? onMouseLeave : undefined}
+      onClick={clickable ? handleClick : undefined}
     >
       {children}
     </motion.div>
