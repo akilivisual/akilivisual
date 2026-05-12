@@ -12,6 +12,7 @@ export async function updateModule(
     depth_layer?: string
     position?: Record<string, unknown>
     motion_profile?: Record<string, unknown>
+    interaction_profile?: Record<string, unknown>
     resonance_profile?: Record<string, unknown>
     props?: Record<string, unknown>
   }
@@ -48,6 +49,7 @@ export async function updateActor(
     transform?: Record<string, unknown>
     visual_schema?: Record<string, unknown>
     motion_schema?: Record<string, unknown>
+    interaction_schema?: Record<string, unknown>
     metadata?: Record<string, unknown>
   }
 ): Promise<{ ok: boolean; error?: string }> {

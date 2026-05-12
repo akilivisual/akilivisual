@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import type { Actor } from '@/lib/schema/types'
+import { useMagnetic } from './hooks/useMagnetic'
 
 interface ActorRendererProps {
   actor: Actor
@@ -79,6 +80,16 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   }
 
   const hidden = !!(actor.metadata as Record<string, unknown>)?.hidden
+
+  // Magnetic pull — logo/text only, driven by cursor proximity
+  const is = (actor.interaction_schema ?? {}) as Record<string, unknown>
+  const magEnabled = !hidden && (actor.actor_type === 'logo' || actor.actor_type === 'text') && !!is.magnetic_enabled
+  const { ref: magRef, mx: magX, my: magY } = useMagnetic(
+    (is.magnetic_radius as number) ?? 150,
+    (is.magnetic_strength as number) ?? 0.4,
+    magEnabled
+  )
+
   if (hidden) return null
 
   const outerStyle = { alignSelf, marginTop: mt, marginRight: mr, marginBottom: mb, marginLeft: ml }
@@ -90,10 +101,17 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
     </motion.div>
   )
 
+  // Magnetic wrapper — wraps entrance when enabled
+  const withMagnetic = magEnabled ? (
+    <motion.div ref={magRef} style={{ x: magX, y: magY }}>
+      {entrance}
+    </motion.div>
+  ) : entrance
+
   // Module ambient loop — runs after entrance settles, skipped if actor already pulses
   const hasAmbient = !!(moduleMotion?.loop) && preset !== 'pulse'
   if (!hasAmbient) {
-    return <div style={outerStyle}>{entrance}</div>
+    return <div style={outerStyle}>{withMagnetic}</div>
   }
 
   const ambientDelay = duration + delay + ((moduleMotion?.delay as number) ?? 0)
@@ -109,7 +127,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
       animate={{ opacity: [opMin, opMax, opMin], scale: [scMin, scMax, scMin] }}
       transition={{ duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: 'easeInOut', repeatType: 'loop' }}
     >
-      {entrance}
+      {withMagnetic}
     </motion.div>
   )
 }

@@ -64,6 +64,7 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
         depth_layer: module.depth_layer,
         position: (module.position ?? {}) as Record<string, unknown>,
         motion_profile: (module.motion_profile ?? {}) as Record<string, unknown>,
+        interaction_profile: (module.interaction_profile ?? {}) as Record<string, unknown>,
         resonance_profile: (module.resonance_profile ?? {}) as Record<string, unknown>,
         props: (module.props ?? {}) as Record<string, unknown>,
       })
@@ -183,9 +184,13 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
   const pos = (module.position ?? {}) as Record<string, number>
   const props = (module.props ?? {}) as Record<string, unknown>
   const layout = (props.layout ?? {}) as Record<string, unknown>
+  const ip = (module.interaction_profile ?? {}) as Record<string, unknown>
 
   function setLayout(key: string, value: unknown) {
     onChange({ ...module, props: { ...props, layout: { ...layout, [key]: value } } })
+  }
+  function setIP(key: string, value: unknown) {
+    onChange({ ...module, interaction_profile: { ...ip, [key]: value } as ModuleWithActors['interaction_profile'] })
   }
 
   const direction = (layout.direction as string) ?? 'column'
@@ -312,6 +317,33 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
           onChange={(v) => onChange({ ...module, position: { ...pos, z: v } })}
         />
       </Field>
+
+      <Divider label="Parallax" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Module drifts with the cursor. Depth layer sets direction and speed.</p>
+      <Field label="Parallax">
+        <Toggle value={!!(ip.parallax_enabled)} onChange={(v) => setIP('parallax_enabled', v)} />
+      </Field>
+      {!!ip.parallax_enabled && (
+        <Field label="Strength (0=none  2=dramatic)">
+          <SliderInput value={(ip.parallax_strength as number) ?? 1} min={0} max={2} step={0.05} onChange={(v) => setIP('parallax_strength', v)} />
+        </Field>
+      )}
+
+      <Divider label="Tilt" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Module tilts in 3D toward the cursor on hover.</p>
+      <Field label="Tilt">
+        <Toggle value={!!(ip.tilt_enabled)} onChange={(v) => setIP('tilt_enabled', v)} />
+      </Field>
+      {!!ip.tilt_enabled && (
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Max Degrees">
+            <SliderInput value={(ip.tilt_max as number) ?? 8} min={0} max={20} step={0.5} onChange={(v) => setIP('tilt_max', v)} />
+          </Field>
+          <Field label="Perspective (px)">
+            <NumberInput value={(ip.tilt_perspective as number) ?? 800} min={400} max={2000} onChange={(v) => setIP('tilt_perspective', v)} />
+          </Field>
+        </div>
+      )}
     </div>
   )
 }
@@ -380,6 +412,10 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
 
   // Atmosphere-specific
   if (module.module_type === 'atmosphere') {
+    const spot = (props.spotlight ?? {}) as Record<string, unknown>
+    function setSpot(key: string, value: unknown) {
+      set('spotlight', { ...spot, [key]: value })
+    }
     return (
       <div className="flex flex-col gap-6">
         <Field label="Background Color">
@@ -406,6 +442,30 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
             }}
           />
         </Field>
+
+        <Divider label="Spotlight" />
+        <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Radial light that follows the cursor across the canvas.</p>
+        <Field label="Spotlight">
+          <Toggle value={!!(spot.enabled)} onChange={(v) => setSpot('enabled', v)} />
+        </Field>
+        {!!spot.enabled && (
+          <>
+            <Field label="Color">
+              <ColorInput value={(spot.color as string) ?? '#ffffff'} onChange={(v) => setSpot('color', v)} />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Size (%)">
+                <SliderInput value={(spot.size as number) ?? 35} min={10} max={80} step={1} onChange={(v) => setSpot('size', v)} />
+              </Field>
+              <Field label="Opacity">
+                <SliderInput value={(spot.opacity as number) ?? 0.08} min={0} max={0.4} step={0.01} onChange={(v) => setSpot('opacity', v)} />
+              </Field>
+            </div>
+            <Field label="Blend Mode">
+              <Select value={(spot.blend_mode as string) ?? 'screen'} options={['screen', 'overlay', 'soft-light']} onChange={(v) => setSpot('blend_mode', v)} />
+            </Field>
+          </>
+        )}
       </div>
     )
   }
@@ -714,6 +774,7 @@ function ActorEditor({
   const vs = (actor.visual_schema ?? {}) as Record<string, unknown>
   const tr = (actor.transform ?? {}) as Record<string, unknown>
   const ms = (actor.motion_schema ?? {}) as Record<string, unknown>
+  const is = (actor.interaction_schema ?? {}) as Record<string, unknown>
 
   function setVS(key: string, value: unknown) {
     setActor({ ...actor, visual_schema: { ...vs, [key]: value } })
@@ -723,6 +784,9 @@ function ActorEditor({
   }
   function setMS(key: string, value: unknown) {
     setActor({ ...actor, motion_schema: { ...ms, [key]: value } })
+  }
+  function setIS(key: string, value: unknown) {
+    setActor({ ...actor, interaction_schema: { ...is, [key]: value } as Actor['interaction_schema'] })
   }
 
   const hidden = !!((actor.metadata as Record<string, unknown>)?.hidden)
@@ -745,6 +809,7 @@ function ActorEditor({
         transform: (actor.transform ?? {}) as Record<string, unknown>,
         visual_schema: (actor.visual_schema ?? {}) as Record<string, unknown>,
         motion_schema: (actor.motion_schema ?? {}) as Record<string, unknown>,
+        interaction_schema: (actor.interaction_schema ?? {}) as Record<string, unknown>,
         metadata: (actor.metadata ?? {}) as Record<string, unknown>,
       })
       if (result.ok) {
@@ -1080,6 +1145,26 @@ function ActorEditor({
                   <NumberInput value={(ms.delay as number) ?? 0} min={0} max={10} step={0.1} onChange={(v) => setMS('delay', v)} />
                 </Field>
               </div>
+
+              {(actor.actor_type === 'logo' || actor.actor_type === 'text') && (
+                <>
+                  <Divider label="Magnetic" />
+                  <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Actor drifts toward the cursor when it approaches.</p>
+                  <Field label="Magnetic">
+                    <Toggle value={!!(is.magnetic_enabled)} onChange={(v) => setIS('magnetic_enabled', v)} />
+                  </Field>
+                  {!!is.magnetic_enabled && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Radius (px)">
+                        <SliderInput value={(is.magnetic_radius as number) ?? 150} min={50} max={400} step={10} onChange={(v) => setIS('magnetic_radius', v)} />
+                      </Field>
+                      <Field label="Strength">
+                        <SliderInput value={(is.magnetic_strength as number) ?? 0.4} min={0} max={1} step={0.05} onChange={(v) => setIS('magnetic_strength', v)} />
+                      </Field>
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-1">
                 {saveError && (

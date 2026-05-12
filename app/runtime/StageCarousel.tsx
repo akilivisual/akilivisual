@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchAllCanvases } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
+import { PointerProvider } from './context/PointerContext'
 import type { CanvasWithModules } from '@/lib/schema/types'
 
 export function StageCarousel() {
@@ -59,7 +60,9 @@ export function StageCarousel() {
             ref={(el) => { sectionRefs.current[i] = el }}
             className="relative w-full h-screen snap-start overflow-hidden bg-black"
           >
-            <CanvasRenderer canvas={canvas} />
+            <PointerProvider>
+              <CanvasRenderer canvas={canvas} />
+            </PointerProvider>
           </div>
         ))}
       </div>

@@ -1,8 +1,10 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import type { CanvasWithModules } from '@/lib/schema/types'
+import type { CanvasWithModules, ModuleWithActors } from '@/lib/schema/types'
 import { ModuleRenderer } from './ModuleRenderer'
+import { useParallax } from './hooks/useParallax'
+import { useTilt } from './hooks/useTilt'
 
 interface CanvasRendererProps {
   canvas: CanvasWithModules
@@ -43,11 +45,47 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
                 zIndex: depthZ + mz,
               }}
             >
-              <ModuleRenderer module={mod} />
+              <ModuleWrapper mod={mod}>
+                <ModuleRenderer module={mod} />
+              </ModuleWrapper>
             </div>
           )
         })}
       </motion.div>
     </AnimatePresence>
+  )
+}
+
+// Isolated component so hooks are always called at a stable component boundary.
+// Parallax adds x/y translation; tilt adds rotateX/rotateY — both on same motion.div,
+// composing cleanly without touching entrance or ambient animations inside.
+function ModuleWrapper({ mod, children }: { mod: ModuleWithActors; children: React.ReactNode }) {
+  const ip = (mod.interaction_profile ?? {}) as Record<string, unknown>
+  const parallaxEnabled = !!ip.parallax_enabled
+  const tiltEnabled = !!ip.tilt_enabled
+  const strength = (ip.parallax_strength as number) ?? 1
+  const tiltMax = (ip.tilt_max as number) ?? 8
+  const tiltPerspective = (ip.tilt_perspective as number) ?? 800
+
+  // Always called — hooks are stable regardless of enabled flags
+  const { px, py } = useParallax(mod.depth_layer ?? 'midground', parallaxEnabled ? strength : 0)
+  const { rotateX, rotateY, onMouseMove, onMouseLeave } = useTilt(tiltEnabled ? tiltMax : 0)
+
+  return (
+    <motion.div
+      style={{
+        width: '100%',
+        height: '100%',
+        x: parallaxEnabled ? px : 0,
+        y: parallaxEnabled ? py : 0,
+        rotateX: tiltEnabled ? rotateX : 0,
+        rotateY: tiltEnabled ? rotateY : 0,
+        transformPerspective: tiltEnabled ? tiltPerspective : undefined,
+      }}
+      onMouseMove={tiltEnabled ? onMouseMove : undefined}
+      onMouseLeave={tiltEnabled ? onMouseLeave : undefined}
+    >
+      {children}
+    </motion.div>
   )
 }

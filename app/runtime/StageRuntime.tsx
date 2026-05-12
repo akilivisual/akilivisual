@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { CanvasWithModules } from '@/lib/schema/types'
 import { fetchCanvasBySlug } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
+import { PointerProvider } from './context/PointerContext'
 
 interface StageRuntimeProps {
   canvasSlug: string
@@ -46,7 +47,9 @@ export function StageRuntime({ canvasSlug }: StageRuntimeProps) {
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-black">
-      <CanvasRenderer canvas={canvas} />
+      <PointerProvider>
+        <CanvasRenderer canvas={canvas} />
+      </PointerProvider>
     </div>
   )
 }

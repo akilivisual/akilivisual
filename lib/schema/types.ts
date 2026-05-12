@@ -219,6 +219,17 @@ export interface InteractionProfile {
   click?: boolean
   drag?: boolean
   cursor?: string
+  // Parallax — module-level, driven by mouse position
+  parallax_enabled?: boolean
+  parallax_strength?: number
+  // Tilt — module-level 3D rotation toward cursor
+  tilt_enabled?: boolean
+  tilt_max?: number
+  tilt_perspective?: number
+  // Magnetic — actor-level drift toward cursor (logo/text only)
+  magnetic_enabled?: boolean
+  magnetic_radius?: number
+  magnetic_strength?: number
 }
 
 // =========================================================
