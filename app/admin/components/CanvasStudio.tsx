@@ -110,17 +110,17 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
       </div>
 
       {/* ── Right panel — editor / preview ─────────────────── */}
-      <div className="flex-1 relative bg-[#050505] overflow-hidden flex flex-col">
+      <div className="flex-1 bg-[#030303] overflow-hidden flex flex-col min-h-0">
 
-        {/* Top bar */}
-        <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-5 z-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-          <div className="flex items-center gap-2 pointer-events-none">
+        {/* Top bar — in flow so it doesn't overlap the stage */}
+        <div className="h-10 shrink-0 flex items-center justify-between px-5 z-10 border-b border-white/[0.04]">
+          <div className="flex items-center gap-2">
             <div className={`w-1.5 h-1.5 rounded-full ${mode === 'preview' ? 'bg-white/40 animate-pulse' : 'bg-white/20'}`} />
             <span className="text-[10px] tracking-[0.2em] uppercase text-white/30">
               {mode === 'edit' ? 'State Editor' : 'Live Preview'}
             </span>
           </div>
-          <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setMode('edit')}
               className={`px-3 py-1 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
@@ -144,27 +144,32 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
           </div>
         </div>
 
-        {/* Canvas Editor */}
-        {mode === 'edit' && (
-          <CanvasEditor
-            placements={placements}
-            selectedId={editing?.id ?? null}
-            onSelect={handleSelect}
-            onCommit={handleMove}
-            onDelete={handleDelete}
-          />
-        )}
-
-        {/* Live Preview iframe */}
-        {mode === 'preview' && (
-          <iframe
-            key={refreshKey}
-            src={`/preview/${canvas.slug}`}
-            className="w-full h-full border-none"
-            title={canvas.title}
-            allow="autoplay"
-          />
-        )}
+        {/* 16:9 stage — centered in the available space */}
+        <div className="flex-1 min-h-0 flex items-center justify-center p-4 overflow-hidden">
+          <div
+            className="relative bg-[#050505] overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.07)]"
+            style={{ aspectRatio: '16/9', maxWidth: '100%', maxHeight: '100%', width: '100%' }}
+          >
+            {mode === 'edit' && (
+              <CanvasEditor
+                placements={placements}
+                selectedId={editing?.id ?? null}
+                onSelect={handleSelect}
+                onCommit={handleMove}
+                onDelete={handleDelete}
+              />
+            )}
+            {mode === 'preview' && (
+              <iframe
+                key={refreshKey}
+                src={`/preview/${canvas.slug}`}
+                className="w-full h-full border-none"
+                title={canvas.title}
+                allow="autoplay"
+              />
+            )}
+          </div>
+        </div>
 
       </div>
 
