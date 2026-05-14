@@ -245,10 +245,8 @@ function ModuleCard({
         top: `calc(50% + ${localY}%)`,
         transform: 'translate(-50%, -50%)',
         zIndex: dragging ? 50 : (LAYER_Z[placement.depth_layer ?? 'midground'] ?? 2),
-        width: localW !== undefined ? `${localW}%` : undefined,
-        height: localH !== undefined ? `${localH}%` : undefined,
-        minWidth: hasFullWidth && localW === undefined ? 220 : undefined,
-        minHeight: hasFullWidth && localH === undefined ? 160 : undefined,
+        width: localW !== undefined ? `${localW}%` : (hasFullWidth ? '240px' : undefined),
+        height: localH !== undefined ? `${localH}%` : (hasFullWidth ? '160px' : undefined),
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}

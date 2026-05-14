@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { CanvasWithPlacements } from '@/lib/schema/types'
@@ -49,28 +49,91 @@ function StateRow({
   onDelete: (id: string) => void
   onDuplicate: (id: string) => void
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const actorCount = canvas.placements.reduce((n, p) => n + p.module.actors.length, 0)
   const moduleTypes = canvas.placements.map(p => p.module.module_type)
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+        setConfirmDelete(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [menuOpen])
+
   async function handleDuplicateClick() {
     setDuplicating(true)
+    setMenuOpen(false)
     await onDuplicate(canvas.id)
     setDuplicating(false)
   }
 
   function handleDeleteClick() {
     if (confirmDelete) {
+      setMenuOpen(false)
       onDelete(canvas.id)
     } else {
       setConfirmDelete(true)
-      setTimeout(() => setConfirmDelete(false), 3000)
     }
   }
 
   return (
     <div className="flex items-center border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all">
+
+      {/* Three-dot trigger */}
+      <div ref={menuRef} className="relative shrink-0">
+        <button
+          onClick={() => { setMenuOpen(o => !o); setConfirmDelete(false) }}
+          className={`flex flex-col items-center justify-center gap-[3px] w-10 h-full min-h-[64px] px-3 border-r border-white/[0.06] transition-colors ${
+            menuOpen ? 'text-white/70' : 'text-white/20 hover:text-white/50'
+          }`}
+          aria-label="State actions"
+        >
+          <span className="w-[3px] h-[3px] rounded-full bg-current block" />
+          <span className="w-[3px] h-[3px] rounded-full bg-current block" />
+          <span className="w-[3px] h-[3px] rounded-full bg-current block" />
+        </button>
+
+        {/* Dropdown */}
+        {menuOpen && (
+          <div className="absolute left-0 top-full mt-1 z-50 w-40 bg-[#0e0e0e] border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.6)] py-1">
+            <Link
+              href={`/admin/canvas/${canvas.slug}`}
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-[11px] tracking-[0.15em] uppercase text-white/50 hover:text-white hover:bg-white/[0.04] transition-colors"
+            >
+              Edit
+            </Link>
+            <button
+              onClick={handleDuplicateClick}
+              disabled={duplicating}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] tracking-[0.15em] uppercase text-white/50 hover:text-white hover:bg-white/[0.04] transition-colors disabled:opacity-30"
+            >
+              {duplicating ? '…' : 'Duplicate'}
+            </button>
+            <div className="my-1 border-t border-white/[0.06]" />
+            <button
+              onClick={handleDeleteClick}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-[11px] tracking-[0.15em] uppercase transition-colors ${
+                confirmDelete
+                  ? 'text-red-400 hover:bg-red-500/10'
+                  : 'text-white/50 hover:text-white hover:bg-white/[0.04]'
+              }`}
+            >
+              {confirmDelete ? 'Sure?' : 'Delete'}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Main content — navigates to detail */}
       <Link
         href={`/admin/canvas/${canvas.slug}`}
@@ -112,30 +175,10 @@ function StateRow({
             <p className="text-[10px] tracking-[0.2em] uppercase text-white/20 mb-0.5">Actors</p>
             <p className="text-sm text-white/60">{actorCount}</p>
           </div>
-          <span className="text-white/20 group-hover:text-white/60 transition-colors text-sm">→</span>
+          <span className="text-white/20 text-sm">→</span>
         </div>
       </Link>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-2 px-4 border-l border-white/[0.06] shrink-0">
-        <button
-          onClick={handleDuplicateClick}
-          disabled={duplicating}
-          className="px-3 py-1.5 border border-white/10 text-[10px] tracking-[0.15em] uppercase text-white/30 hover:text-white/70 hover:border-white/30 transition-colors disabled:opacity-30"
-        >
-          {duplicating ? '…' : 'Duplicate'}
-        </button>
-        <button
-          onClick={handleDeleteClick}
-          className={`px-3 py-1.5 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
-            confirmDelete
-              ? 'border-red-500/50 text-red-400/80'
-              : 'border-white/10 text-white/20 hover:text-white/50 hover:border-white/25'
-          }`}
-        >
-          {confirmDelete ? 'Sure?' : 'Delete'}
-        </button>
-      </div>
     </div>
   )
 }
