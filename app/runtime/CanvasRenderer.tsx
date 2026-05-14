@@ -32,6 +32,8 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           const mx = (pos.x as number) ?? 0
           const my = (pos.y as number) ?? 0
           const mz = (pos.z as number) ?? 0
+          const mw = pos.width as number | undefined
+          const mh = pos.height as number | undefined
           const depthZ = { background: 0, midground: 5, foreground: 10 }[placement.depth_layer ?? 'midground'] ?? 5
           return (
             <div
@@ -40,8 +42,8 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
                 position: 'absolute',
                 left: `calc(50% + ${mx}%)`,
                 top: `calc(50% + ${my}%)`,
-                width: '100%',
-                height: '100%',
+                width: mw !== undefined ? `${mw}%` : '100%',
+                height: mh !== undefined ? `${mh}%` : '100%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: depthZ + mz,
                 pointerEvents: 'none',

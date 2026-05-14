@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence } from 'framer-motion'
 import type { CanvasWithPlacements, PlacementWithModule } from '@/lib/schema/types'
-import { updatePlacement } from '@/app/admin/actions/modules'
+import { updatePlacement, deletePlacement } from '@/app/admin/actions/modules'
 import { PlacementList } from './PlacementList'
 import { CanvasEditor } from './CanvasEditor'
 import { ModuleEditPanel } from './ModuleEditPanel'
@@ -32,15 +32,20 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
     setRefreshKey(k => k + 1)
   }
 
-  async function handleMove(placementId: string, x: number, y: number) {
-    setPlacements(prev =>
-      prev.map(p =>
-        p.id === placementId
-          ? { ...p, position: { ...(p.position as Record<string, number>), x, y } }
-          : p
-      )
-    )
-    await updatePlacement(placementId, { position: { x, y } })
+  async function handleMove(placementId: string, x: number, y: number, width?: number, height?: number) {
+    const existing = (placements.find(p => p.id === placementId)?.position ?? {}) as Record<string, unknown>
+    const newPos: Record<string, unknown> = { ...existing, x, y }
+    if (width !== undefined) newPos.width = width
+    if (height !== undefined) newPos.height = height
+    setPlacements(prev => prev.map(p => p.id === placementId ? { ...p, position: newPos } : p))
+    await updatePlacement(placementId, { position: newPos })
+  }
+
+  async function handleDelete(placementId: string) {
+    setPlacements(prev => prev.filter(p => p.id !== placementId))
+    if (editing?.id === placementId) setEditing(null)
+    await deletePlacement(placementId)
+    setRefreshKey(k => k + 1)
   }
 
   function handleSelect(placement: PlacementWithModule | null) {
@@ -142,6 +147,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
             selectedId={editing?.id ?? null}
             onSelect={handleSelect}
             onCommit={handleMove}
+            onDelete={handleDelete}
           />
         )}
 
@@ -165,6 +171,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
             placement={editing}
             onClose={() => setEditing(null)}
             onSaved={handleSaved}
+            onDelete={() => handleDelete(editing.id)}
           />
         )}
       </AnimatePresence>

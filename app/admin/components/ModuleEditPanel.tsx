@@ -15,6 +15,7 @@ interface Props {
   placement: PlacementWithModule
   onClose: () => void
   onSaved: (updated?: PlacementWithModule) => void
+  onDelete?: () => void
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -47,12 +48,13 @@ function defaultVisualSchema(type: string): Record<string, unknown> {
 
 // ── Panel ────────────────────────────────────────────────────────────
 
-export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved }: Props) {
+export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved, onDelete }: Props) {
   const [tab, setTab] = useState<Tab>('layout')
   const [placement, setPlacement] = useState(initialPlacement)
   const [module, setModule] = useState(initialPlacement.module)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     setPlacement(initialPlacement)
@@ -177,10 +179,27 @@ export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved 
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-6 py-4 border-t border-white/10 flex items-center justify-between">
-          <span className={`text-[10px] tracking-[0.15em] ${status === 'Saved' ? 'text-white/40' : 'text-red-400/60'}`}>
-            {status}
-          </span>
+        <div className="shrink-0 px-6 py-4 border-t border-white/10 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {onDelete && (
+              <button
+                onClick={() => {
+                  if (confirmDelete) { onDelete() }
+                  else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
+                }}
+                className={`px-3 py-2 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
+                  confirmDelete
+                    ? 'border-red-500/50 text-red-400/80'
+                    : 'border-white/10 text-white/25 hover:text-red-400/60 hover:border-red-500/30'
+                }`}
+              >
+                {confirmDelete ? 'Sure?' : 'Remove'}
+              </button>
+            )}
+            <span className={`text-[10px] tracking-[0.15em] ${status === 'Saved' ? 'text-white/40' : 'text-red-400/60'}`}>
+              {status}
+            </span>
+          </div>
           <div className="flex gap-3">
             <button
               onClick={onClose}

@@ -7,12 +7,13 @@ interface Props {
   placements: PlacementWithModule[]
   selectedId: string | null
   onSelect: (placement: PlacementWithModule) => void
-  onCommit: (placementId: string, x: number, y: number) => void
+  onCommit: (placementId: string, x: number, y: number, width?: number, height?: number) => void
+  onDelete: (placementId: string) => void
 }
 
 const LAYER_Z: Record<string, number> = { background: 1, midground: 2, foreground: 3 }
 
-export function CanvasEditor({ placements, selectedId, onSelect, onCommit }: Props) {
+export function CanvasEditor({ placements, selectedId, onSelect, onCommit, onDelete }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   function handleBackdropClick(e: React.MouseEvent) {
@@ -51,7 +52,8 @@ export function CanvasEditor({ placements, selectedId, onSelect, onCommit }: Pro
           selected={selectedId === placement.id}
           containerRef={containerRef}
           onSelect={() => onSelect(placement)}
-          onCommit={(x, y) => onCommit(placement.id, x, y)}
+          onCommit={(x, y, w, h) => onCommit(placement.id, x, y, w, h)}
+          onDelete={() => onDelete(placement.id)}
         />
       ))}
     </div>
@@ -64,12 +66,14 @@ function ModuleCard({
   containerRef,
   onSelect,
   onCommit,
+  onDelete,
 }: {
   placement: PlacementWithModule
   selected: boolean
   containerRef: React.RefObject<HTMLDivElement | null>
   onSelect: () => void
-  onCommit: (x: number, y: number) => void
+  onCommit: (x: number, y: number, width?: number, height?: number) => void
+  onDelete: () => void
 }) {
   const mod = placement.module
   const pos = (placement.position ?? {}) as Record<string, number>
@@ -78,15 +82,21 @@ function ModuleCard({
 
   const [localX, setLocalX] = useState(pos.x ?? 0)
   const [localY, setLocalY] = useState(pos.y ?? 0)
+  const [localW, setLocalW] = useState<number | undefined>(pos.width as number | undefined)
+  const [localH, setLocalH] = useState<number | undefined>(pos.height as number | undefined)
   const [dragging, setDragging] = useState(false)
-  const startRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
 
   useEffect(() => {
     if (!dragging) {
       setLocalX(pos.x ?? 0)
       setLocalY(pos.y ?? 0)
+      setLocalW(pos.width as number | undefined)
+      setLocalH(pos.height as number | undefined)
     }
-  }, [pos.x, pos.y, dragging])
+  }, [pos.x, pos.y, pos.width, pos.height, dragging])
 
   function handleMouseDown(e: React.MouseEvent) {
     e.preventDefault()
@@ -94,36 +104,88 @@ function ModuleCard({
     onSelect()
     if (isAtmosphere) return
 
-    startRef.current = { mx: e.clientX, my: e.clientY, px: localX, py: localY }
+    dragRef.current = { mx: e.clientX, my: e.clientY, px: localX, py: localY }
     setDragging(true)
 
-    function handleMove(ev: MouseEvent) {
-      if (!startRef.current || !containerRef.current) return
+    function onMove(ev: MouseEvent) {
+      if (!dragRef.current || !containerRef.current) return
       const { width, height } = containerRef.current.getBoundingClientRect()
-      const dx = ((ev.clientX - startRef.current.mx) / width) * 100
-      const dy = ((ev.clientY - startRef.current.my) / height) * 100
-      setLocalX(startRef.current.px + dx)
-      setLocalY(startRef.current.py + dy)
+      const dx = ((ev.clientX - dragRef.current.mx) / width) * 100
+      const dy = ((ev.clientY - dragRef.current.my) / height) * 100
+      setLocalX(dragRef.current.px + dx)
+      setLocalY(dragRef.current.py + dy)
     }
 
-    function handleUp(ev: MouseEvent) {
-      if (!startRef.current || !containerRef.current) return
+    function onUp(ev: MouseEvent) {
+      if (!dragRef.current || !containerRef.current) return
       const { width, height } = containerRef.current.getBoundingClientRect()
-      const dx = ((ev.clientX - startRef.current.mx) / width) * 100
-      const dy = ((ev.clientY - startRef.current.my) / height) * 100
-      const nx = Math.round((startRef.current.px + dx) * 10) / 10
-      const ny = Math.round((startRef.current.py + dy) * 10) / 10
+      const dx = ((ev.clientX - dragRef.current.mx) / width) * 100
+      const dy = ((ev.clientY - dragRef.current.my) / height) * 100
+      const nx = Math.round((dragRef.current.px + dx) * 10) / 10
+      const ny = Math.round((dragRef.current.py + dy) * 10) / 10
       setLocalX(nx)
       setLocalY(ny)
-      onCommit(nx, ny)
+      onCommit(nx, ny, localW, localH)
       setDragging(false)
-      startRef.current = null
-      window.removeEventListener('mousemove', handleMove)
-      window.removeEventListener('mouseup', handleUp)
+      dragRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
     }
 
-    window.addEventListener('mousemove', handleMove)
-    window.addEventListener('mouseup', handleUp)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // corner: 'tl' | 'tr' | 'bl' | 'br'
+  // Width sign: right corners +dx, left corners -dx
+  // Height sign: bottom corners +dy, top corners -dy
+  // Center always moves by (dx/2, dy/2)
+  function handleResizeMouseDown(corner: 'tl' | 'tr' | 'bl' | 'br', e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const container = containerRef.current
+    const card = cardRef.current
+    if (!container || !card) return
+
+    const cRect = container.getBoundingClientRect()
+    const kRect = card.getBoundingClientRect()
+    const startW = (kRect.width / cRect.width) * 100
+    const startH = (kRect.height / cRect.height) * 100
+    const startX = localX
+    const startY = localY
+    const startMX = e.clientX
+    const startMY = e.clientY
+    const xSign = corner.includes('r') ? 1 : -1
+    const ySign = corner.includes('b') ? 1 : -1
+
+    function onMove(ev: MouseEvent) {
+      const dx = ((ev.clientX - startMX) / cRect.width) * 100
+      const dy = ((ev.clientY - startMY) / cRect.height) * 100
+      setLocalW(Math.max(5, startW + xSign * dx))
+      setLocalH(Math.max(5, startH + ySign * dy))
+      setLocalX(startX + dx / 2)
+      setLocalY(startY + dy / 2)
+    }
+
+    function onUp(ev: MouseEvent) {
+      const dx = ((ev.clientX - startMX) / cRect.width) * 100
+      const dy = ((ev.clientY - startMY) / cRect.height) * 100
+      const nw = Math.max(5, startW + xSign * dx)
+      const nh = Math.max(5, startH + ySign * dy)
+      const nx = Math.round((startX + dx / 2) * 10) / 10
+      const ny = Math.round((startY + dy / 2) * 10) / 10
+      setLocalW(nw)
+      setLocalH(nh)
+      setLocalX(nx)
+      setLocalY(ny)
+      onCommit(nx, ny, nw, nh)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }
 
   const depthDot: Record<string, string> = {
@@ -150,7 +212,6 @@ function ModuleCard({
         onMouseDown={handleMouseDown}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Color preview as subtle background */}
         <div className="absolute inset-0 opacity-20" style={atmStyle} />
         <div className="absolute top-3 left-3 flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm border border-white/20" style={atmStyle} />
@@ -161,6 +222,15 @@ function ModuleCard({
             atmosphere
           </span>
         </div>
+        {selected && (
+          <button
+            className="absolute top-2 right-2 text-[9px] tracking-[0.1em] uppercase px-2 py-1 border border-red-500/30 text-red-400/60 hover:text-red-400 hover:border-red-500/60 transition-colors pointer-events-auto"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+          >
+            Remove
+          </button>
+        )}
       </div>
     )
   }
@@ -173,26 +243,26 @@ function ModuleCard({
         top: `calc(50% + ${localY}%)`,
         transform: 'translate(-50%, -50%)',
         zIndex: dragging ? 50 : (LAYER_Z[placement.depth_layer ?? 'midground'] ?? 2),
+        width: localW !== undefined ? `${localW}%` : undefined,
+        height: localH !== undefined ? `${localH}%` : undefined,
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}
     >
       <div
-        className={`border transition-all overflow-hidden ${
+        ref={cardRef}
+        className={`border transition-all overflow-hidden w-full h-full ${
           selected
             ? 'border-white/50 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_12px_40px_rgba(0,0,0,0.7)]'
             : 'border-white/20 hover:border-white/35'
         } ${dragging ? 'shadow-[0_16px_48px_rgba(0,0,0,0.85)]' : ''}`}
-        style={{ minWidth: 180 }}
+        style={{ minWidth: localW !== undefined ? undefined : 180 }}
       >
-        {/* Media / color preview */}
         <ModulePreview module={mod} />
-
-        {/* Label row */}
         <div className="px-3 py-2.5 bg-black/60">
           <div className="flex items-center gap-2 mb-1">
             <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
-            <span className="text-[11px] tracking-wide text-white/80 truncate max-w-[200px]">
+            <span className="text-[11px] tracking-wide text-white/80 truncate">
               {mod.name ?? mod.module_type}
             </span>
           </div>
@@ -202,18 +272,37 @@ function ModuleCard({
             </span>
             <span className="text-[9px] text-white/15 font-mono tabular-nums">
               {localX.toFixed(1)}, {localY.toFixed(1)}
+              {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Selection handles */}
+      {/* Selection: resize handles + delete button */}
       {selected && (
         <>
-          <div className="absolute -top-1 -left-1 w-2 h-2 border border-white/60 bg-[#080808]" />
-          <div className="absolute -top-1 -right-1 w-2 h-2 border border-white/60 bg-[#080808]" />
-          <div className="absolute -bottom-1 -left-1 w-2 h-2 border border-white/60 bg-[#080808]" />
-          <div className="absolute -bottom-1 -right-1 w-2 h-2 border border-white/60 bg-[#080808]" />
+          {/* Delete */}
+          <button
+            className={`absolute -top-7 right-0 text-[9px] tracking-[0.1em] uppercase px-2 py-1 border transition-colors pointer-events-auto ${
+              confirmDelete
+                ? 'border-red-500/60 text-red-400'
+                : 'border-white/20 text-white/30 hover:text-red-400/70 hover:border-red-500/30'
+            }`}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (confirmDelete) { onDelete() }
+              else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
+            }}
+          >
+            {confirmDelete ? 'Sure?' : 'Remove'}
+          </button>
+
+          {/* Corner resize handles */}
+          <div className="absolute -top-1.5 -left-1.5 w-3 h-3 border border-white/60 bg-[#080808] cursor-nw-resize pointer-events-auto" onMouseDown={(e) => handleResizeMouseDown('tl', e)} />
+          <div className="absolute -top-1.5 -right-1.5 w-3 h-3 border border-white/60 bg-[#080808] cursor-ne-resize pointer-events-auto" onMouseDown={(e) => handleResizeMouseDown('tr', e)} />
+          <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 border border-white/60 bg-[#080808] cursor-sw-resize pointer-events-auto" onMouseDown={(e) => handleResizeMouseDown('bl', e)} />
+          <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 border border-white/60 bg-[#080808] cursor-se-resize pointer-events-auto" onMouseDown={(e) => handleResizeMouseDown('br', e)} />
         </>
       )}
     </div>
