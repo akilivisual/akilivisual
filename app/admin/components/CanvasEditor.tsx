@@ -275,7 +275,7 @@ function ModuleCard({
 
   return (
     <div
-      className={`absolute pointer-events-auto transition-opacity ${hidden ? 'opacity-30' : ''} ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`group absolute pointer-events-auto transition-opacity ${hidden ? 'opacity-30' : ''} ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{
         left: `calc(50% + ${localX}%)`,
         top: `calc(50% + ${localY}%)`,
@@ -289,7 +289,7 @@ function ModuleCard({
     >
       {/* Always-visible label strip above card — unobtrusive, not full-canvas */}
       {!fullCanvas && (
-        <div className="absolute -top-5 left-0 right-0 flex items-center gap-1.5 pointer-events-none">
+        <div className={`absolute -top-5 left-0 right-0 flex items-center gap-1.5 pointer-events-none transition-opacity duration-150 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
           <div className={`w-1 h-1 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
           <span className="text-[9px] text-white/30 truncate flex-1 min-w-0">
             {mod.name ?? mod.module_type}
