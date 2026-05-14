@@ -6,7 +6,7 @@ import type { PlacementWithModule, Actor } from '@/lib/schema/types'
 import { reorderPlacements } from '@/app/admin/actions/canvas'
 import { addModuleToCanvas, deletePlacement, updateModule } from '@/app/admin/actions/modules'
 
-const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'text_block', 'media', 'custom']
+const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'text_block', 'media', 'gallery', 'form', 'custom']
 
 interface PlacementListProps {
   placements: PlacementWithModule[]

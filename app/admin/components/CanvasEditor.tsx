@@ -532,6 +532,45 @@ function ModulePreview({ module: mod, fillCard }: { module: PlacementWithModule[
     )
   }
 
+  if (mod.module_type === 'gallery') {
+    const images = (props.images as string[]) ?? []
+    const first = images[0]
+    if (first) {
+      return (
+        <div className={fillCard ? 'absolute inset-0 overflow-hidden' : 'relative w-full overflow-hidden'} style={fillCard ? undefined : { maxHeight: 120 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={first} alt="" className="w-full h-full object-cover block" />
+          {images.length > 1 && (
+            <span className="absolute bottom-2 right-2 text-[8px] tracking-[0.1em] text-white/50 bg-black/40 px-1.5 py-0.5">
+              {images.length}
+            </span>
+          )}
+        </div>
+      )
+    }
+    return (
+      <div className="px-3 pt-3 pb-1">
+        <span className="text-[9px] tracking-[0.1em] uppercase text-white/20">Gallery — no images yet</span>
+      </div>
+    )
+  }
+
+  if (mod.module_type === 'form') {
+    const fields = (props.fields as { label: string }[]) ?? []
+    return (
+      <div className="px-3 pt-3 pb-2 flex flex-col gap-1.5">
+        {fields.slice(0, 3).map((f, i) => (
+          <div key={i} className="h-6 border border-white/10 flex items-center px-2">
+            <span className="text-[9px] text-white/25">{f.label}</span>
+          </div>
+        ))}
+        {fields.length === 0 && (
+          <span className="text-[9px] tracking-[0.1em] uppercase text-white/20">Form — no fields yet</span>
+        )}
+      </div>
+    )
+  }
+
   // Fallback: actor color swatches
   const colorActors = mod.actors.filter(a => {
     const vs = (a.visual_schema ?? {}) as Record<string, unknown>

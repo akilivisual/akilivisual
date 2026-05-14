@@ -218,5 +218,18 @@ function defaultModuleProps(type: string): Record<string, unknown> {
   if (type === 'embed') {
     return { embed_type: 'iframe', url: '', width: null, height: 500, opacity: 1, border_radius: 0 }
   }
+  if (type === 'gallery') {
+    return { images: [], auto_advance: false, auto_interval: 5, transition_duration: 0.8, object_fit: 'cover' }
+  }
+  if (type === 'form') {
+    return {
+      fields: [
+        { id: 'name', label: 'Name', type: 'text', placeholder: 'Your name', required: true },
+        { id: 'email', label: 'Email', type: 'email', placeholder: 'your@email.com', required: true },
+      ],
+      submit_label: 'Send',
+      success_message: "Thank you. We'll be in touch.",
+    }
+  }
   return {}
 }

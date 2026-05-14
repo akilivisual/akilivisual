@@ -5,6 +5,8 @@ import { FocusModule } from './modules/FocusModule'
 import { OrbitalInteractionModule } from './modules/OrbitalInteractionModule'
 import { AtmosphereModule } from './modules/AtmosphereModule'
 import { EmbedModule } from './modules/EmbedModule'
+import { GalleryModule } from './modules/GalleryModule'
+import { FormModule } from './modules/FormModule'
 import { FlexActor } from './ActorRenderer'
 
 interface ModuleRendererProps {
@@ -23,6 +25,10 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
       return <AtmosphereModule module={module} />
     case 'embed':
       return <EmbedModule module={module} />
+    case 'gallery':
+      return <GalleryModule module={module} />
+    case 'form':
+      return <FormModule module={module} />
     case 'text_block': {
       const props = (module.props as Record<string, unknown>)
       const layout = (props.layout ?? {}) as Record<string, unknown>

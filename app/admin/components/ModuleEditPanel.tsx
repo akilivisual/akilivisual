@@ -11,6 +11,14 @@ import { getSupabase } from '@/lib/supabase/client'
 
 type Tab = 'layout' | 'interactions' | 'motion' | 'props' | 'actors'
 
+interface FormFieldDef {
+  id: string
+  label: string
+  type: 'text' | 'email' | 'tel' | 'textarea'
+  placeholder?: string
+  required?: boolean
+}
+
 interface Props {
   placement: PlacementWithModule
   onClose: () => void
@@ -793,6 +801,122 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
             options={['0em', '0.02em', '0.05em', '0.1em', '0.15em', '0.2em', '0.3em', '0.4em']}
             onChange={(v) => set('letter_spacing', v)}
           />
+        </Field>
+      </div>
+    )
+  }
+
+  // Gallery editor
+  if (module.module_type === 'gallery') {
+    const images = (props.images as string[]) ?? []
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <p className="text-[10px] tracking-[0.15em] uppercase text-white/40">Images (one URL per line)</p>
+          <textarea
+            spellCheck={false}
+            className="w-full h-48 bg-white/[0.03] border border-white/10 text-[11px] text-white/60 font-mono p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
+            value={images.join('\n')}
+            onChange={(e) => set('images', e.target.value.split('\n').map((s: string) => s.trim()).filter(Boolean))}
+            placeholder={'https://...\nhttps://...'}
+          />
+          <p className="text-[10px] text-white/20">Paste image URLs from the Media Library</p>
+        </div>
+        <Divider label="Behavior" />
+        <Field label="Auto Advance">
+          <Toggle value={(props.auto_advance as boolean) ?? false} onChange={(v) => set('auto_advance', v)} />
+        </Field>
+        {!!(props.auto_advance) && (
+          <Field label="Interval (seconds)">
+            <NumberInput value={(props.auto_interval as number) ?? 5} min={1} max={60} onChange={(v) => set('auto_interval', v)} />
+          </Field>
+        )}
+        <Field label="Transition Duration (s)">
+          <SliderInput value={(props.transition_duration as number) ?? 0.8} min={0.1} max={3} step={0.1} onChange={(v) => set('transition_duration', v)} />
+        </Field>
+        <Field label="Object Fit">
+          <Select
+            value={(props.object_fit as string) ?? 'cover'}
+            options={['cover', 'contain', 'fill']}
+            onChange={(v) => set('object_fit', v)}
+          />
+        </Field>
+      </div>
+    )
+  }
+
+  // Form editor
+  if (module.module_type === 'form') {
+    const fields = (props.fields as FormFieldDef[]) ?? []
+
+    function addField() {
+      const id = `field_${Date.now()}`
+      set('fields', [...fields, { id, label: 'Label', type: 'text', placeholder: '', required: false }])
+    }
+
+    function removeField(id: string) {
+      set('fields', fields.filter((f: FormFieldDef) => f.id !== id))
+    }
+
+    function updateField(id: string, key: string, value: unknown) {
+      set('fields', fields.map((f: FormFieldDef) => f.id === id ? { ...f, [key]: value } : f))
+    }
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] tracking-[0.15em] uppercase text-white/40">Fields</p>
+            <button
+              type="button"
+              onClick={addField}
+              className="text-[9px] tracking-[0.1em] uppercase text-white/40 hover:text-white/60 border border-white/10 hover:border-white/20 px-2 py-1 transition-colors"
+            >
+              + Add
+            </button>
+          </div>
+          {fields.map((field: FormFieldDef, i: number) => (
+            <div key={field.id} className="border border-white/[0.06] p-3 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] tracking-[0.1em] uppercase text-white/25">Field {i + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => removeField(field.id)}
+                  className="text-[9px] text-white/20 hover:text-red-400/60 transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Label">
+                  <Input value={field.label} onChange={(v) => updateField(field.id, 'label', v)} />
+                </Field>
+                <Field label="Type">
+                  <Select
+                    value={field.type}
+                    options={['text', 'email', 'tel', 'textarea']}
+                    onChange={(v) => updateField(field.id, 'type', v)}
+                  />
+                </Field>
+              </div>
+              <Field label="Placeholder">
+                <Input value={field.placeholder ?? ''} onChange={(v) => updateField(field.id, 'placeholder', v)} />
+              </Field>
+              <Field label="Required">
+                <Toggle value={!!field.required} onChange={(v) => updateField(field.id, 'required', v)} />
+              </Field>
+            </div>
+          ))}
+          {fields.length === 0 && (
+            <p className="text-[10px] text-white/20 text-center py-4">No fields yet — click + Add</p>
+          )}
+        </div>
+        <Divider label="Copy" />
+        <Field label="Submit Button">
+          <Input value={(props.submit_label as string) ?? 'Send'} onChange={(v) => set('submit_label', v)} />
+        </Field>
+        <Field label="Success Message">
+          <Input value={(props.success_message as string) ?? 'Thank you!'} onChange={(v) => set('success_message', v)} />
         </Field>
       </div>
     )
