@@ -188,6 +188,8 @@ function ModuleCard({
     window.addEventListener('mouseup', onUp)
   }
 
+  const hasFullWidth = mod.actors.some(a => !!((a.visual_schema as Record<string, unknown>)?.full_width))
+
   const depthDot: Record<string, string> = {
     background: 'bg-white/20',
     midground: 'bg-white/45',
@@ -251,15 +253,18 @@ function ModuleCard({
     >
       <div
         ref={cardRef}
-        className={`border transition-all overflow-hidden w-full h-full ${
+        className={`relative border transition-all overflow-hidden w-full h-full ${
           selected
             ? 'border-white/50 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_12px_40px_rgba(0,0,0,0.7)]'
             : 'border-white/20 hover:border-white/35'
         } ${dragging ? 'shadow-[0_16px_48px_rgba(0,0,0,0.85)]' : ''}`}
-        style={{ minWidth: localW !== undefined ? undefined : 180 }}
+        style={{
+          minWidth: localW !== undefined ? undefined : 180,
+          minHeight: hasFullWidth && localH === undefined ? 180 : undefined,
+        }}
       >
-        <ModulePreview module={mod} />
-        <div className="px-3 py-2.5 bg-black/60">
+        <ModulePreview module={mod} hasFullWidth={hasFullWidth} />
+        <div className={`px-3 py-2.5 bg-black/70 ${hasFullWidth ? 'absolute bottom-0 left-0 right-0 z-10' : ''}`}>
           <div className="flex items-center gap-2 mb-1">
             <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
             <span className="text-[11px] tracking-wide text-white/80 truncate">
@@ -309,7 +314,7 @@ function ModuleCard({
   )
 }
 
-function ModulePreview({ module: mod }: { module: PlacementWithModule['module'] }) {
+function ModulePreview({ module: mod, hasFullWidth }: { module: PlacementWithModule['module']; hasFullWidth?: boolean }) {
   const props = mod.props as Record<string, unknown>
 
   // Find first actor with renderable content
@@ -326,15 +331,13 @@ function ModulePreview({ module: mod }: { module: PlacementWithModule['module'] 
       if (isVideo) {
         if (fullWidth) {
           return (
-            <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
-              <video
-                src={src}
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                muted
-                playsInline
-                preload="metadata"
-              />
-            </div>
+            <video
+              src={src}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              muted
+              playsInline
+              preload="metadata"
+            />
           )
         }
         return (
@@ -351,9 +354,8 @@ function ModulePreview({ module: mod }: { module: PlacementWithModule['module'] 
         return (
           <div
             style={{
-              position: 'relative',
-              height: 180,
-              overflow: 'hidden',
+              position: 'absolute',
+              inset: 0,
               backgroundImage: `url(${src})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
