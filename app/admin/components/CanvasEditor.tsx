@@ -189,6 +189,8 @@ function ModuleCard({
   }
 
   const hasFullWidth = mod.actors.some(a => !!((a.visual_schema as Record<string, unknown>)?.full_width))
+  // Media fills the card whenever the card has been explicitly sized OR actor has full_width
+  const fillCard = hasFullWidth || (localW !== undefined && localH !== undefined)
 
   const depthDot: Record<string, string> = {
     background: 'bg-white/20',
@@ -262,26 +264,25 @@ function ModuleCard({
           minWidth: !hasFullWidth && localW === undefined ? 180 : undefined,
         }}
       >
-        <ModulePreview module={mod} hasFullWidth={hasFullWidth} />
-        {!hasFullWidth && (
-          <div className="px-3 py-2.5 bg-black/60">
-            <div className="flex items-center gap-2 mb-1">
-              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
-              <span className="text-[11px] tracking-wide text-white/80 truncate">
-                {mod.name ?? mod.module_type}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] tracking-[0.1em] uppercase text-white/25 border border-white/[0.08] px-1.5 py-0.5">
-                {mod.module_type}
-              </span>
-              <span className="text-[9px] text-white/15 font-mono tabular-nums">
-                {localX.toFixed(1)}, {localY.toFixed(1)}
-                {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
-              </span>
-            </div>
+        <ModulePreview module={mod} fillCard={fillCard} />
+        {/* Label: overlay when card is explicitly sized, flow when thumbnail */}
+        <div className={`px-3 py-2 bg-black/60 ${fillCard ? 'absolute bottom-0 left-0 right-0 z-10' : ''}`}>
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
+            <span className="text-[11px] tracking-wide text-white/80 truncate">
+              {mod.name ?? mod.module_type}
+            </span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] tracking-[0.1em] uppercase text-white/25 border border-white/[0.08] px-1.5 py-0.5">
+              {mod.module_type}
+            </span>
+            <span className="text-[9px] text-white/15 font-mono tabular-nums">
+              {localX.toFixed(1)}, {localY.toFixed(1)}
+              {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Selection: resize handles + delete button */}
@@ -351,7 +352,7 @@ function ModuleCard({
   )
 }
 
-function ModulePreview({ module: mod, hasFullWidth }: { module: PlacementWithModule['module']; hasFullWidth?: boolean }) {
+function ModulePreview({ module: mod, fillCard }: { module: PlacementWithModule['module']; fillCard?: boolean }) {
   const props = mod.props as Record<string, unknown>
 
   // Find first actor with renderable content
@@ -362,11 +363,11 @@ function ModulePreview({ module: mod, hasFullWidth }: { module: PlacementWithMod
   if (mediaActor) {
     const vs = (mediaActor.visual_schema ?? {}) as Record<string, unknown>
     const src = vs.src as string
-    const fullWidth = !!(vs.full_width as boolean)
     if (src) {
       const isVideo = (vs.media_type as string) === 'video' || src.match(/\.(mp4|webm|mov)$/i)
-      if (isVideo) {
-        if (fullWidth) {
+      if (fillCard) {
+        // Fill the card — mirrors runtime rendering
+        if (isVideo) {
           return (
             <video
               src={src}
@@ -378,17 +379,6 @@ function ModulePreview({ module: mod, hasFullWidth }: { module: PlacementWithMod
           )
         }
         return (
-          <video
-            src={src}
-            className="w-full h-24 object-cover block"
-            muted
-            playsInline
-            preload="metadata"
-          />
-        )
-      }
-      if (fullWidth) {
-        return (
           <div
             style={{
               position: 'absolute',
@@ -397,6 +387,18 @@ function ModulePreview({ module: mod, hasFullWidth }: { module: PlacementWithMod
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
+          />
+        )
+      }
+      // Thumbnail mode — no explicit size set
+      if (isVideo) {
+        return (
+          <video
+            src={src}
+            className="w-full h-24 object-cover block"
+            muted
+            playsInline
+            preload="metadata"
           />
         )
       }
