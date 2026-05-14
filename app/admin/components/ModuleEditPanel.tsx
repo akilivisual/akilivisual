@@ -993,6 +993,7 @@ function ActorEditor({
   const [actor, setActor] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const actorTextRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => { setActor(initial) }, [initial.id])
 
@@ -1012,6 +1013,19 @@ function ActorEditor({
   }
   function setIS(key: string, value: unknown) {
     setActor({ ...actor, interaction_schema: { ...is, [key]: value } as Actor['interaction_schema'] })
+  }
+  function wrapActorText(open: string, close: string) {
+    const el = actorTextRef.current
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const current = (vs.text as string) ?? ''
+    const next = current.slice(0, start) + open + current.slice(start, end) + close + current.slice(end)
+    setVS('text', next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + open.length, end + open.length)
+    })
   }
 
   const hidden = !!((actor.metadata as Record<string, unknown>)?.hidden)
@@ -1179,9 +1193,34 @@ function ActorEditor({
               <Divider label="Visual" />
               {(actor.actor_type === 'text' || actor.actor_type === 'logo') && (
                 <div className="flex flex-col gap-4">
-                  <Field label="Text">
-                    <Input value={(vs.text as string) ?? ''} onChange={(v) => setVS('text', v)} />
-                  </Field>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[10px] tracking-[0.15em] uppercase text-white/40">Text</p>
+                    <div className="flex gap-1">
+                      {[
+                        { label: 'B', open: '<strong>', close: '</strong>', style: 'font-bold' },
+                        { label: 'I', open: '<em>', close: '</em>', style: 'italic' },
+                        { label: 'U', open: '<u>', close: '</u>', style: 'underline' },
+                        { label: '↵', open: '<br/>', close: '', style: '' },
+                      ].map(({ label, open, close, style }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); wrapActorText(open, close) }}
+                          className={`px-2 py-1 text-[10px] text-white/50 hover:text-white/80 border border-white/10 hover:border-white/25 bg-white/[0.03] transition-colors ${style}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      ref={actorTextRef}
+                      spellCheck={false}
+                      className="w-full h-28 bg-white/[0.03] border border-white/10 text-sm text-white/80 p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
+                      value={(vs.text as string) ?? ''}
+                      onChange={(e) => setVS('text', e.target.value)}
+                      placeholder="Enter text or select and click B / I / U..."
+                    />
+                  </div>
                   <Field label="Color">
                     <ColorInput value={(vs.color as string) ?? '#ffffff'} onChange={(v) => setVS('color', v)} />
                   </Field>
@@ -1197,6 +1236,19 @@ function ActorEditor({
                       />
                     </Field>
                   </div>
+                  <Field label="Font Family">
+                    <Select
+                      value={(vs.font_family as string) ?? 'inherit'}
+                      options={[
+                        'inherit',
+                        'Inter', 'Syne', 'Space Grotesk', 'DM Sans', 'Outfit',
+                        'Playfair Display', 'Cormorant Garamond', 'DM Serif Display',
+                        'Bebas Neue', 'Rajdhani',
+                        'Space Mono', 'JetBrains Mono',
+                      ]}
+                      onChange={(v) => setVS('font_family', v)}
+                    />
+                  </Field>
                   <Field label="Size (container)">
                     <NumberInput value={(vs.size as number) ?? 120} min={20} max={800} onChange={(v) => setVS('size', v)} />
                   </Field>

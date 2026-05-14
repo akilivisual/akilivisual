@@ -197,6 +197,7 @@ export interface VisualSchema {
   text?: string
   font_size?: number
   font_weight?: string
+  font_family?: string
   // media actor
   media_type?: string
   width?: number

@@ -217,11 +217,13 @@ function TextActor({ actor }: { actor: Actor }) {
   const vs = actor.visual_schema ?? {}
   const text = (vs.text as string) ?? ''
   const hasHtml = /<[a-z][\s\S]*>/i.test(text)
+  const fontFamily = vs.font_family as string | undefined
   const style = {
     fontSize: (vs.font_size as number) ?? 16,
     fontWeight: (vs.font_weight as string) ?? '300',
     color: (vs.color as string) ?? '#ffffff',
     letterSpacing: '0.05em',
+    fontFamily: fontFamily && fontFamily !== 'inherit' ? `'${fontFamily}', sans-serif` : undefined,
   }
   if (hasHtml) return <span style={style} dangerouslySetInnerHTML={{ __html: text }} />
   return <span style={style}>{text}</span>
