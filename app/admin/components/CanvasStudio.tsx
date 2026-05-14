@@ -64,7 +64,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
             href="/admin"
             className="text-[10px] tracking-[0.2em] uppercase text-white/25 hover:text-white/60 transition-colors mb-5 inline-block"
           >
-            ← Canvases
+            ← States
           </Link>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -113,7 +113,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
           <div className="flex items-center gap-2 pointer-events-none">
             <div className={`w-1.5 h-1.5 rounded-full ${mode === 'preview' ? 'bg-white/40 animate-pulse' : 'bg-white/20'}`} />
             <span className="text-[10px] tracking-[0.2em] uppercase text-white/30">
-              {mode === 'edit' ? 'Canvas Editor' : 'Live Preview'}
+              {mode === 'edit' ? 'State Editor' : 'Live Preview'}
             </span>
           </div>
           <div className="flex items-center gap-2 pointer-events-auto">

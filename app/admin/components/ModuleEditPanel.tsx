@@ -339,8 +339,8 @@ function LayoutTab({
         </Field>
       </div>
 
-      <Divider label="Canvas Position" />
-      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Shifts this module's frame on the canvas. 0, 0 = center.</p>
+      <Divider label="State Position" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Shifts this module's position in the state. 0, 0 = center.</p>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="X (% from center)">
@@ -375,7 +375,7 @@ function LayoutTab({
 
 const CLICK_ACTIONS = [
   { value: 'none',            label: 'None' },
-  { value: 'navigate_canvas', label: 'Navigate to Canvas' },
+  { value: 'navigate_canvas', label: 'Navigate to State' },
   { value: 'external_link',   label: 'External Link' },
 ]
 
@@ -402,11 +402,11 @@ function InteractionsTab({ module, onChange }: { module: ModuleWithActors; onCha
       </Field>
 
       {clickAction === 'navigate_canvas' && (
-        <Field label="Canvas Slug">
+        <Field label="State Slug">
           <Input
             value={(ip.click_target as string) ?? ''}
             onChange={(v) => setIP('click_target', v)}
-            placeholder="e.g. canvas_0002"
+            placeholder="e.g. state_0002"
           />
         </Field>
       )}

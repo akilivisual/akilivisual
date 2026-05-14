@@ -52,7 +52,7 @@ export function DeleteCanvasButton({ canvasId, canvasTitle }: DeleteCanvasButton
               transition={{ duration: 0.16 }}
             >
               <p className="text-[10px] tracking-[0.3em] uppercase text-red-400/60 mb-4">Destructive Action</p>
-              <h2 className="text-base font-light tracking-wide text-white mb-2">Delete Canvas</h2>
+              <h2 className="text-base font-light tracking-wide text-white mb-2">Delete State</h2>
               <p className="text-[12px] text-white/40 leading-relaxed mb-1">
                 This will permanently delete{' '}
                 <span className="text-white/70">{canvasTitle}</span>{' '}
@@ -77,7 +77,7 @@ export function DeleteCanvasButton({ canvasId, canvasTitle }: DeleteCanvasButton
                   disabled={deleting}
                   className="px-5 py-2 border border-red-700/50 text-[11px] tracking-[0.2em] uppercase text-red-400/80 hover:text-red-300 hover:border-red-500/60 transition-colors disabled:opacity-40"
                 >
-                  {deleting ? 'Deleting...' : 'Delete Canvas'}
+                  {deleting ? 'Deleting...' : 'Delete State'}
                 </button>
               </div>
             </motion.div>

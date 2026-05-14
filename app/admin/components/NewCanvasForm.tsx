@@ -51,11 +51,11 @@ export function NewCanvasForm() {
         href="/admin"
         className="text-[10px] tracking-[0.2em] uppercase text-white/25 hover:text-white/60 transition-colors mb-8 inline-block"
       >
-        ← Canvases
+        ← States
       </Link>
 
       <p className="text-[10px] tracking-[0.3em] uppercase text-white/25 mb-1">New</p>
-      <h1 className="text-2xl font-light tracking-wide text-white mb-10">Create Canvas</h1>
+      <h1 className="text-2xl font-light tracking-wide text-white mb-10">New State</h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         {/* Title */}
@@ -65,7 +65,7 @@ export function NewCanvasForm() {
             type="text"
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="Canvas title"
+            placeholder="State title"
             autoFocus
             className="w-full bg-transparent border-b border-white/15 text-white text-sm py-2 placeholder:text-white/20 focus:outline-none focus:border-white/40 transition-colors"
           />
@@ -108,7 +108,7 @@ export function NewCanvasForm() {
             disabled={!title.trim() || !slug.trim() || saving}
             className="px-6 py-2.5 border border-white/20 text-[11px] tracking-[0.2em] uppercase text-white/60 hover:text-white hover:border-white/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {saving ? 'Creating…' : 'Create Canvas'}
+            {saving ? 'Creating…' : 'Create State'}
           </button>
           <Link
             href="/admin"

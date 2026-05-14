@@ -320,9 +320,23 @@ function ModulePreview({ module: mod }: { module: PlacementWithModule['module'] 
   if (mediaActor) {
     const vs = (mediaActor.visual_schema ?? {}) as Record<string, unknown>
     const src = vs.src as string
+    const fullWidth = !!(vs.full_width as boolean)
     if (src) {
       const isVideo = (vs.media_type as string) === 'video' || src.match(/\.(mp4|webm|mov)$/i)
       if (isVideo) {
+        if (fullWidth) {
+          return (
+            <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
+              <video
+                src={src}
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                muted
+                playsInline
+                preload="metadata"
+              />
+            </div>
+          )
+        }
         return (
           <video
             src={src}
@@ -333,8 +347,22 @@ function ModulePreview({ module: mod }: { module: PlacementWithModule['module'] 
           />
         )
       }
+      if (fullWidth) {
+        return (
+          <div
+            style={{
+              position: 'relative',
+              height: 180,
+              overflow: 'hidden',
+              backgroundImage: `url(${src})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+        )
+      }
       // eslint-disable-next-line @next/next/no-img-element
-      return <img src={src} alt="" className="w-full h-24 object-cover block" />
+      return <img src={src} alt="" className="w-full block" style={{ objectFit: 'contain', maxHeight: 160 }} />
     }
   }
 
