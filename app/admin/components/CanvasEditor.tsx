@@ -132,25 +132,32 @@ function ModuleCard({
     foreground: 'bg-white/80',
   }
 
-  // Atmosphere: full-canvas overlay
+  // Atmosphere: full-canvas overlay with color preview
   if (isAtmosphere) {
+    const props = mod.props as Record<string, unknown>
+    const bg = (props.background as string) ?? '#000000'
+    const gc = (props.gradient_colors as string[]) ?? []
+    const atmStyle = gc.length >= 2
+      ? { background: `linear-gradient(135deg, ${gc[0]}, ${gc[1]})` }
+      : { background: bg }
+
     return (
       <div
-        className={`absolute inset-4 border transition-all pointer-events-auto ${
-          selected
-            ? 'border-white/30 bg-white/[0.02]'
-            : 'border-white/[0.06] bg-transparent hover:border-white/15'
+        className={`absolute inset-4 border transition-all pointer-events-auto overflow-hidden ${
+          selected ? 'border-white/30' : 'border-white/[0.06] hover:border-white/15'
         } ${hidden ? 'opacity-30' : ''}`}
         style={{ zIndex: LAYER_Z[placement.depth_layer ?? 'midground'] ?? 2 }}
         onMouseDown={handleMouseDown}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Color preview as subtle background */}
+        <div className="absolute inset-0 opacity-20" style={atmStyle} />
         <div className="absolute top-3 left-3 flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30">
+          <div className="w-3 h-3 rounded-sm border border-white/20" style={atmStyle} />
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/40">
             {mod.name ?? mod.module_type}
           </span>
-          <span className="text-[9px] tracking-[0.1em] uppercase text-white/15 border border-white/[0.08] px-1.5 py-0.5">
+          <span className="text-[9px] tracking-[0.1em] uppercase text-white/20 border border-white/[0.08] px-1.5 py-0.5">
             atmosphere
           </span>
         </div>
@@ -171,15 +178,19 @@ function ModuleCard({
       onClick={(e) => e.stopPropagation()}
     >
       <div
-        className={`border transition-all ${
+        className={`border transition-all overflow-hidden ${
           selected
-            ? 'border-white/50 bg-white/[0.09] shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_12px_40px_rgba(0,0,0,0.7)]'
-            : 'border-white/20 bg-white/[0.04] hover:border-white/35 hover:bg-white/[0.07]'
+            ? 'border-white/50 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_12px_40px_rgba(0,0,0,0.7)]'
+            : 'border-white/20 hover:border-white/35'
         } ${dragging ? 'shadow-[0_16px_48px_rgba(0,0,0,0.85)]' : ''}`}
-        style={{ minWidth: 160 }}
+        style={{ minWidth: 180 }}
       >
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-2 mb-1.5">
+        {/* Media / color preview */}
+        <ModulePreview module={mod} />
+
+        {/* Label row */}
+        <div className="px-3 py-2.5 bg-black/60">
+          <div className="flex items-center gap-2 mb-1">
             <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
             <span className="text-[11px] tracking-wide text-white/80 truncate max-w-[200px]">
               {mod.name ?? mod.module_type}
@@ -193,33 +204,118 @@ function ModuleCard({
               {localX.toFixed(1)}, {localY.toFixed(1)}
             </span>
           </div>
-          {mod.actors.length > 0 && (
-            <div className="flex gap-1 mt-2 flex-wrap">
-              {mod.actors.slice(0, 3).map((a) => (
-                <span
-                  key={a.id}
-                  className="text-[8px] tracking-[0.08em] uppercase text-white/20 border border-white/[0.06] px-1 py-0.5"
-                >
-                  {a.actor_type}
-                </span>
-              ))}
-              {mod.actors.length > 3 && (
-                <span className="text-[8px] text-white/15">+{mod.actors.length - 3}</span>
-              )}
-            </div>
-          )}
         </div>
-
-        {/* Selection handles */}
-        {selected && (
-          <>
-            <div className="absolute -top-1 -left-1 w-2 h-2 border border-white/60 bg-[#080808]" />
-            <div className="absolute -top-1 -right-1 w-2 h-2 border border-white/60 bg-[#080808]" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 border border-white/60 bg-[#080808]" />
-            <div className="absolute -bottom-1 -right-1 w-2 h-2 border border-white/60 bg-[#080808]" />
-          </>
-        )}
       </div>
+
+      {/* Selection handles */}
+      {selected && (
+        <>
+          <div className="absolute -top-1 -left-1 w-2 h-2 border border-white/60 bg-[#080808]" />
+          <div className="absolute -top-1 -right-1 w-2 h-2 border border-white/60 bg-[#080808]" />
+          <div className="absolute -bottom-1 -left-1 w-2 h-2 border border-white/60 bg-[#080808]" />
+          <div className="absolute -bottom-1 -right-1 w-2 h-2 border border-white/60 bg-[#080808]" />
+        </>
+      )}
     </div>
   )
+}
+
+function ModulePreview({ module: mod }: { module: PlacementWithModule['module'] }) {
+  const props = mod.props as Record<string, unknown>
+
+  // Find first actor with renderable content
+  const mediaActor = mod.actors.find(a => a.actor_type === 'media' || a.actor_type === 'image')
+  const orbActor = mod.actors.find(a => a.actor_type === 'orb')
+  const textActor = mod.actors.find(a => a.actor_type === 'text' || a.actor_type === 'logo')
+
+  if (mediaActor) {
+    const vs = (mediaActor.visual_schema ?? {}) as Record<string, unknown>
+    const src = vs.src as string
+    if (src) {
+      const isVideo = (vs.media_type as string) === 'video' || src.match(/\.(mp4|webm|mov)$/i)
+      if (isVideo) {
+        return (
+          <video
+            src={src}
+            className="w-full h-24 object-cover block"
+            muted
+            playsInline
+            preload="metadata"
+          />
+        )
+      }
+      // eslint-disable-next-line @next/next/no-img-element
+      return <img src={src} alt="" className="w-full h-24 object-cover block" />
+    }
+  }
+
+  if (mod.module_type === 'text_block') {
+    const text = (props.text as string ?? '').replace(/<[^>]+>/g, '').slice(0, 80)
+    const color = (props.color as string) ?? '#ffffff'
+    if (text) {
+      return (
+        <div className="px-3 pt-3 pb-1 min-h-[2.5rem]">
+          <p className="text-[12px] leading-snug line-clamp-2" style={{ color }}>
+            {text}
+          </p>
+        </div>
+      )
+    }
+  }
+
+  if (orbActor) {
+    const vs = (orbActor.visual_schema ?? {}) as Record<string, unknown>
+    const color = (vs.color as string) ?? '#ffffff'
+    return (
+      <div className="flex items-center gap-3 px-3 pt-3 pb-1">
+        <div
+          className="w-8 h-8 rounded-full shrink-0"
+          style={{ backgroundColor: color, filter: 'blur(4px)', boxShadow: `0 0 16px ${color}60` }}
+        />
+        <span className="text-[10px] text-white/30 font-mono">{color}</span>
+      </div>
+    )
+  }
+
+  if (textActor) {
+    const vs = (textActor.visual_schema ?? {}) as Record<string, unknown>
+    const text = (vs.text as string) ?? ''
+    const color = (vs.color as string) ?? '#ffffff'
+    if (text) {
+      return (
+        <div className="px-3 pt-3 pb-1">
+          <p className="text-[13px] truncate" style={{ color }}>{text}</p>
+        </div>
+      )
+    }
+  }
+
+  if (mod.module_type === 'embed') {
+    const embedType = (props.embed_type as string) ?? 'iframe'
+    const url = (props.url as string) ?? ''
+    return (
+      <div className="px-3 pt-3 pb-1 flex items-center gap-2">
+        <span className="text-[9px] tracking-[0.1em] uppercase text-white/30 border border-white/[0.08] px-1.5 py-0.5">{embedType}</span>
+        {url && <span className="text-[9px] text-white/20 truncate max-w-[140px]">{url.replace(/^https?:\/\//, '')}</span>}
+      </div>
+    )
+  }
+
+  // Fallback: actor color swatches
+  const colorActors = mod.actors.filter(a => {
+    const vs = (a.visual_schema ?? {}) as Record<string, unknown>
+    return !!vs.color
+  })
+  if (colorActors.length > 0) {
+    return (
+      <div className="flex gap-1 px-3 pt-3 pb-1">
+        {colorActors.slice(0, 6).map(a => {
+          const color = ((a.visual_schema ?? {}) as Record<string, unknown>).color as string
+          return <div key={a.id} className="w-4 h-4 rounded-sm border border-white/10" style={{ backgroundColor: color }} />
+        })}
+      </div>
+    )
+  }
+
+  return null
 }

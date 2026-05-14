@@ -93,21 +93,21 @@ export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved 
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — only covers left panel, canvas stays interactive */}
       <motion.div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+        className="fixed left-0 top-0 bottom-0 w-[460px] bg-black/40 z-40"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel — slides over the left list panel */}
       <motion.div
-        className="fixed right-0 top-0 h-full w-[500px] bg-[#080808] border-l border-white/10 z-50 flex flex-col"
-        initial={{ x: '100%' }}
+        className="fixed left-0 top-0 h-full w-[460px] bg-[#080808] border-r border-white/10 z-50 flex flex-col"
+        initial={{ x: '-100%' }}
         animate={{ x: 0 }}
-        exit={{ x: '100%' }}
+        exit={{ x: '-100%' }}
         transition={{ type: 'tween', duration: 0.22, ease: 'easeOut' }}
       >
         {/* Header */}
