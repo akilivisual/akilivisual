@@ -219,7 +219,7 @@ function defaultModuleProps(type: string): Record<string, unknown> {
     return { embed_type: 'iframe', url: '', width: null, height: 500, opacity: 1, border_radius: 0 }
   }
   if (type === 'gallery') {
-    return { images: [], auto_advance: false, auto_interval: 5, transition_duration: 0.8, object_fit: 'cover' }
+    return { images: [], auto_advance: false, auto_interval: 5, transition_type: 'fade', transition_duration: 0.8, object_fit: 'cover' }
   }
   if (type === 'form') {
     return {

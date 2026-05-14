@@ -812,16 +812,23 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
     return (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <p className="text-[10px] tracking-[0.15em] uppercase text-white/40">Images (one URL per line)</p>
-          <textarea
-            spellCheck={false}
-            className="w-full h-48 bg-white/[0.03] border border-white/10 text-[11px] text-white/60 font-mono p-3 leading-relaxed resize-none focus:outline-none focus:border-white/25"
-            value={images.join('\n')}
-            onChange={(e) => set('images', e.target.value.split('\n').map((s: string) => s.trim()).filter(Boolean))}
-            placeholder={'https://...\nhttps://...'}
+          <p className="text-[10px] tracking-[0.15em] uppercase text-white/40">Images</p>
+          <GalleryImagesPicker
+            images={images}
+            onChange={(imgs) => set('images', imgs)}
           />
-          <p className="text-[10px] text-white/20">Paste image URLs from the Media Library</p>
         </div>
+        <Divider label="Transition" />
+        <Field label="Type">
+          <Select
+            value={(props.transition_type as string) ?? 'fade'}
+            options={['fade', 'slide']}
+            onChange={(v) => set('transition_type', v)}
+          />
+        </Field>
+        <Field label="Duration (s)">
+          <SliderInput value={(props.transition_duration as number) ?? 0.8} min={0.1} max={3} step={0.1} onChange={(v) => set('transition_duration', v)} />
+        </Field>
         <Divider label="Behavior" />
         <Field label="Auto Advance">
           <Toggle value={(props.auto_advance as boolean) ?? false} onChange={(v) => set('auto_advance', v)} />
@@ -831,9 +838,6 @@ function PropsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m
             <NumberInput value={(props.auto_interval as number) ?? 5} min={1} max={60} onChange={(v) => set('auto_interval', v)} />
           </Field>
         )}
-        <Field label="Transition Duration (s)">
-          <SliderInput value={(props.transition_duration as number) ?? 0.8} min={0.1} max={3} step={0.1} onChange={(v) => set('transition_duration', v)} />
-        </Field>
         <Field label="Object Fit">
           <Select
             value={(props.object_fit as string) ?? 'cover'}
@@ -1720,6 +1724,165 @@ function ActorEditor({
 }
 
 // ── Media Picker ─────────────────────────────────────────────────────
+
+function GalleryImagesPicker({
+  images,
+  onChange,
+}: {
+  images: string[]
+  onChange: (images: string[]) => void
+}) {
+  const [showAdd, setShowAdd] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [showLibrary, setShowLibrary] = useState(false)
+  const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
+  const [loadingLibrary, setLoadingLibrary] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  function addImage(url: string) {
+    onChange([...images, url])
+    setShowAdd(false)
+    setShowLibrary(false)
+  }
+
+  function removeImage(i: number) {
+    onChange(images.filter((_, idx) => idx !== i))
+  }
+
+  function moveLeft(i: number) {
+    if (i === 0) return
+    const next = [...images]
+    ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
+    onChange(next)
+  }
+
+  function moveRight(i: number) {
+    if (i === images.length - 1) return
+    const next = [...images]
+    ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
+    onChange(next)
+  }
+
+  async function handleUpload(file: File) {
+    setUploading(true)
+    setUploadError('')
+    try {
+      const supabase = getSupabase()
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (error) { setUploadError(error.message); return }
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
+      await createMediaAsset(publicUrl, 'image', file.name.replace(/\.[^.]+$/, ''), path)
+      addImage(publicUrl)
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function openLibrary() {
+    setShowLibrary(true)
+    setLoadingLibrary(true)
+    const assets = await listMediaAssets()
+    setLibraryAssets(assets.filter((a) => a.asset_type === 'image'))
+    setLoadingLibrary(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {images.map((url, i) => (
+            <div key={i} className="relative group border border-white/10 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="w-full h-16 object-cover block" />
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                {i > 0 && (
+                  <button type="button" onClick={() => moveLeft(i)} className="text-white/70 hover:text-white text-[11px] leading-none">←</button>
+                )}
+                <button type="button" onClick={() => removeImage(i)} className="text-white/60 hover:text-red-400 text-[11px] leading-none">✕</button>
+                {i < images.length - 1 && (
+                  <button type="button" onClick={() => moveRight(i)} className="text-white/70 hover:text-white text-[11px] leading-none">→</button>
+                )}
+              </div>
+              <div className="absolute top-1 left-1 text-[7px] text-white/40 bg-black/60 px-1 leading-none py-0.5">{i + 1}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!showAdd ? (
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="border border-dashed border-white/15 text-[10px] tracking-[0.1em] uppercase text-white/30 hover:text-white/50 hover:border-white/30 py-3 transition-colors"
+        >
+          + Add Image
+        </button>
+      ) : (
+        <div className="border border-white/10 p-3 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] tracking-[0.1em] uppercase text-white/30">Add Image</span>
+            <button type="button" onClick={() => { setShowAdd(false); setShowLibrary(false) }} className="text-[9px] text-white/20 hover:text-white/50 transition-colors">✕</button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors disabled:opacity-40"
+            >
+              {uploading ? 'Uploading...' : 'Upload'}
+            </button>
+            <button
+              type="button"
+              onClick={showLibrary ? () => setShowLibrary(false) : openLibrary}
+              className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors"
+            >
+              {showLibrary ? 'Close Library' : 'Library'}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+            />
+          </div>
+          {uploadError && <p className="text-[10px] text-red-400/70">{uploadError}</p>}
+          {showLibrary && (
+            <div className="border border-white/10 bg-black/60 p-3">
+              <p className="text-[10px] tracking-[0.2em] uppercase text-white/25 mb-2">Media Library</p>
+              {loadingLibrary ? (
+                <p className="text-[10px] text-white/20 text-center py-4 animate-pulse">Loading...</p>
+              ) : libraryAssets.length === 0 ? (
+                <p className="text-[10px] text-white/20 text-center py-4">No images in library</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                  {libraryAssets.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => addImage(a.url)}
+                      className={`border transition-colors overflow-hidden ${images.includes(a.url) ? 'border-white/40' : 'border-white/10 hover:border-white/40'}`}
+                      title={a.title ?? a.url}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={a.url} alt={a.title ?? ''} className="w-full h-16 object-cover block" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function MediaPickerField({
   src,
