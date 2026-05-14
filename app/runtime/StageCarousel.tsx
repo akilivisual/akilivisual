@@ -5,10 +5,10 @@ import { fetchAllCanvases } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
 import { PointerProvider } from './context/PointerContext'
 import { NavigationProvider } from './context/NavigationContext'
-import type { CanvasWithModules } from '@/lib/schema/types'
+import type { CanvasWithPlacements } from '@/lib/schema/types'
 
 export function StageCarousel() {
-  const [canvases, setCanvases] = useState<CanvasWithModules[]>([])
+  const [canvases, setCanvases] = useState<CanvasWithPlacements[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([])

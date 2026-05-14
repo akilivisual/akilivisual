@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { adminFetchAllCanvases } from '@/lib/supabase/admin'
-import type { CanvasWithModules } from '@/lib/schema/types'
+import type { CanvasWithPlacements } from '@/lib/schema/types'
 import { SeedButton } from './components/SeedButton'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminDashboard() {
-  let canvases: CanvasWithModules[] = []
+  let canvases: CanvasWithPlacements[] = []
 
   try {
     canvases = await adminFetchAllCanvases()
@@ -14,9 +14,9 @@ export default async function AdminDashboard() {
     // env vars not set yet — show empty state
   }
 
-  const totalModules = canvases.reduce((n, c) => n + c.modules.length, 0)
+  const totalModules = canvases.reduce((n, c) => n + c.placements.length, 0)
   const totalActors = canvases.reduce((n, c) =>
-    n + c.modules.reduce((m, mod) => m + mod.actors.length, 0), 0)
+    n + c.placements.reduce((m, p) => m + p.module.actors.length, 0), 0)
 
   return (
     <div className="px-10 py-10">
@@ -65,9 +65,9 @@ export default async function AdminDashboard() {
   )
 }
 
-function CanvasRow({ canvas }: { canvas: CanvasWithModules }) {
-  const actorCount = canvas.modules.reduce((n, m) => n + m.actors.length, 0)
-  const moduleTypes = canvas.modules.map((m) => m.module_type)
+function CanvasRow({ canvas }: { canvas: CanvasWithPlacements }) {
+  const actorCount = canvas.placements.reduce((n, p) => n + p.module.actors.length, 0)
+  const moduleTypes = canvas.placements.map((p) => p.module.module_type)
 
   return (
     <Link href={`/admin/canvas/${canvas.slug}`}>
@@ -99,7 +99,7 @@ function CanvasRow({ canvas }: { canvas: CanvasWithModules }) {
         <div className="flex items-center gap-8">
           <div className="text-right">
             <p className="text-[10px] tracking-[0.2em] uppercase text-white/20 mb-0.5">Modules</p>
-            <p className="text-sm text-white/60">{canvas.modules.length}</p>
+            <p className="text-sm text-white/60">{canvas.placements.length}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] tracking-[0.2em] uppercase text-white/20 mb-0.5">Actors</p>

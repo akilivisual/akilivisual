@@ -39,13 +39,13 @@ export async function deleteCanvas(id: string): Promise<{ ok: boolean; error?: s
   redirect('/admin')
 }
 
-export async function reorderModules(
-  moduleIds: string[]
+export async function reorderPlacements(
+  placementIds: string[]
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = getAdminSupabase()
 
-  const updates = moduleIds.map((id, index) =>
-    supabase.from('modules').update({ order_index: index }).eq('id', id)
+  const updates = placementIds.map((id, index) =>
+    supabase.from('canvas_placements').update({ order_index: index }).eq('id', id)
   )
 
   const results = await Promise.all(updates)
@@ -56,3 +56,6 @@ export async function reorderModules(
   revalidatePath('/admin/canvas/[slug]', 'page')
   return { ok: true }
 }
+
+// Legacy alias kept briefly for any remaining callers
+export const reorderModules = reorderPlacements

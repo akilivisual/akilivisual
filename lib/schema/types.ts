@@ -1,6 +1,6 @@
 // =========================================================
 // AKILIVISUAL 2.0 — CORE SCHEMA TYPES
-// Stage → Canvas → Modules → Actors
+// Stage → Canvas → Placements → Modules → Actors
 // =========================================================
 
 export interface Project {
@@ -27,19 +27,30 @@ export interface Canvas {
   updated_at: string
 }
 
+// Modules are global prefabs — not scoped to any canvas.
+// Position, depth, and order live on CanvasPlacement.
 export interface Module {
   id: string
-  canvas_id: string | null
   module_type: ModuleType
   name: string | null
-  depth_layer: DepthLayer
-  position: Position
   props: Record<string, unknown>
   motion_profile: MotionProfileData
   interaction_profile: InteractionProfile
   resonance_profile: ResonanceProfileData
   metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+// One instance of a module placed on a specific canvas.
+export interface CanvasPlacement {
+  id: string
+  canvas_id: string
+  module_id: string
+  position: Position
+  depth_layer: DepthLayer
   order_index: number
+  overrides: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -90,11 +101,12 @@ export interface MotionProfileRecord {
   name: string
   pulse_speed: number
   easing_type: string
-  opacity_behavior: Record<string, unknown>
-  scale_behavior: Record<string, unknown>
-  particle_behavior: Record<string, unknown>
-  transition_behavior: Record<string, unknown>
-  resonance_rules: Record<string, unknown>
+  opacity: { min: number; max: number }
+  scale: { min: number; max: number }
+  duration: number
+  delay: number
+  loop: boolean
+  audio_reactivity: number
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -115,16 +127,23 @@ export interface ResonanceProfileRecord {
 }
 
 // =========================================================
-// CANVAS WITH NESTED MODULES + ACTORS
+// COMPOSITE FETCH TYPES
 // =========================================================
-
-export interface CanvasWithModules extends Canvas {
-  modules: ModuleWithActors[]
-}
 
 export interface ModuleWithActors extends Module {
   actors: Actor[]
 }
+
+export interface PlacementWithModule extends CanvasPlacement {
+  module: ModuleWithActors
+}
+
+export interface CanvasWithPlacements extends Canvas {
+  placements: PlacementWithModule[]
+}
+
+// Legacy alias — remove once all references are migrated
+export type CanvasWithModules = CanvasWithPlacements
 
 // =========================================================
 // INLINE PROFILE TYPES (stored as JSONB in the DB)
@@ -243,6 +262,10 @@ export interface InteractionProfile {
   magnetic_enabled?: boolean
   magnetic_radius?: number
   magnetic_strength?: number
+  // Trigger actions
+  click_action?: string    // 'none' | 'navigate_canvas' | 'external_link'
+  click_target?: string    // canvas slug or URL
+  click_new_tab?: boolean  // external_link only
 }
 
 // =========================================================
@@ -255,6 +278,7 @@ export type Database = {
       projects: { Row: Project; Insert: Omit<Project, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Project> }
       canvases: { Row: Canvas; Insert: Omit<Canvas, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Canvas> }
       modules: { Row: Module; Insert: Omit<Module, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Module> }
+      canvas_placements: { Row: CanvasPlacement; Insert: Omit<CanvasPlacement, 'id' | 'created_at' | 'updated_at'>; Update: Partial<CanvasPlacement> }
       actors: { Row: Actor; Insert: Omit<Actor, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Actor> }
       media_assets: { Row: MediaAsset; Insert: Omit<MediaAsset, 'id' | 'created_at' | 'updated_at'>; Update: Partial<MediaAsset> }
       personas: { Row: Persona; Insert: Omit<Persona, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Persona> }

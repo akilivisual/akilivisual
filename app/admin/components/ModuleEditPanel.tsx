@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion'
-import type { ModuleWithActors, Actor, VisualSchema, MediaAsset } from '@/lib/schema/types'
-import { updateModule, updateActor, addActor, deleteActor, reorderActors } from '@/app/admin/actions/modules'
+import type { PlacementWithModule, ModuleWithActors, Actor, VisualSchema, MediaAsset } from '@/lib/schema/types'
+import { updateModule, updatePlacement, updateActor, addActor, deleteActor, reorderActors } from '@/app/admin/actions/modules'
 import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
 import { getSupabase } from '@/lib/supabase/client'
 
@@ -12,9 +12,9 @@ import { getSupabase } from '@/lib/supabase/client'
 type Tab = 'layout' | 'interactions' | 'motion' | 'props' | 'actors'
 
 interface Props {
-  module: ModuleWithActors
+  placement: PlacementWithModule
   onClose: () => void
-  onSaved: (m: ModuleWithActors) => void
+  onSaved: (updated?: PlacementWithModule) => void
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -47,34 +47,42 @@ function defaultVisualSchema(type: string): Record<string, unknown> {
 
 // ── Panel ────────────────────────────────────────────────────────────
 
-export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
+export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved }: Props) {
   const [tab, setTab] = useState<Tab>('layout')
-  const [module, setModule] = useState(initial)
+  const [placement, setPlacement] = useState(initialPlacement)
+  const [module, setModule] = useState(initialPlacement.module)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
 
-  // Keep local state fresh if parent re-passes module
-  useEffect(() => { setModule(initial) }, [initial])
+  useEffect(() => {
+    setPlacement(initialPlacement)
+    setModule(initialPlacement.module)
+  }, [initialPlacement])
 
   async function save() {
     setSaving(true)
     setStatus('')
     try {
-      const result = await updateModule(module.id, {
-        name: module.name ?? undefined,
-        depth_layer: module.depth_layer,
-        position: (module.position ?? {}) as Record<string, unknown>,
-        motion_profile: (module.motion_profile ?? {}) as Record<string, unknown>,
-        interaction_profile: (module.interaction_profile ?? {}) as Record<string, unknown>,
-        resonance_profile: (module.resonance_profile ?? {}) as Record<string, unknown>,
-        props: (module.props ?? {}) as Record<string, unknown>,
-      })
-      if (result.ok) {
+      const [modResult, placeResult] = await Promise.all([
+        updateModule(module.id, {
+          name: module.name ?? undefined,
+          motion_profile: (module.motion_profile ?? {}) as Record<string, unknown>,
+          interaction_profile: (module.interaction_profile ?? {}) as Record<string, unknown>,
+          resonance_profile: (module.resonance_profile ?? {}) as Record<string, unknown>,
+          props: (module.props ?? {}) as Record<string, unknown>,
+        }),
+        updatePlacement(placement.id, {
+          position: (placement.position ?? {}) as Record<string, unknown>,
+          depth_layer: placement.depth_layer,
+        }),
+      ])
+      if (modResult.ok && placeResult.ok) {
         setStatus('Saved')
-        onSaved(module)
+        const updated: PlacementWithModule = { ...placement, module }
+        onSaved(updated)
         setTimeout(() => setStatus(''), 2000)
       } else {
-        setStatus(result.error ?? 'Error')
+        setStatus(modResult.error ?? placeResult.error ?? 'Error')
       }
     } catch (e) {
       setStatus(e instanceof Error ? e.message : 'Error')
@@ -140,7 +148,12 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
           {tab === 'layout' && (
-            <LayoutTab module={module} onChange={setModule} />
+            <LayoutTab
+              module={module}
+              placement={placement}
+              onModuleChange={setModule}
+              onPlacementChange={setPlacement}
+            />
           )}
           {tab === 'interactions' && (
             <InteractionsTab module={module} onChange={setModule} />
@@ -152,7 +165,14 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
             <PropsTab module={module} onChange={setModule} />
           )}
           {tab === 'actors' && (
-            <ActorsTab module={module} onChange={setModule} onSaved={(m) => { setModule(m); onSaved(m) }} />
+            <ActorsTab
+              module={module}
+              onChange={setModule}
+              onSaved={(m) => {
+                setModule(m)
+                onSaved({ ...placement, module: m })
+              }}
+            />
           )}
         </div>
 
@@ -184,13 +204,23 @@ export function ModuleEditPanel({ module: initial, onClose, onSaved }: Props) {
 
 // ── Layout Tab ───────────────────────────────────────────────────────
 
-function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (m: ModuleWithActors) => void }) {
-  const pos = (module.position ?? {}) as Record<string, number>
+function LayoutTab({
+  module,
+  placement,
+  onModuleChange,
+  onPlacementChange,
+}: {
+  module: ModuleWithActors
+  placement: PlacementWithModule
+  onModuleChange: (m: ModuleWithActors) => void
+  onPlacementChange: (p: PlacementWithModule) => void
+}) {
+  const pos = (placement.position ?? {}) as Record<string, number>
   const props = (module.props ?? {}) as Record<string, unknown>
   const layout = (props.layout ?? {}) as Record<string, unknown>
 
   function setLayout(key: string, value: unknown) {
-    onChange({ ...module, props: { ...props, layout: { ...layout, [key]: value } } })
+    onModuleChange({ ...module, props: { ...props, layout: { ...layout, [key]: value } } })
   }
 
   const direction = (layout.direction as string) ?? 'column'
@@ -202,16 +232,16 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
       <Field label="Module Name">
         <Input
           value={module.name ?? ''}
-          onChange={(v) => onChange({ ...module, name: v })}
+          onChange={(v) => onModuleChange({ ...module, name: v })}
           placeholder="e.g. Logo Focus"
         />
       </Field>
 
       <Field label="Depth Layer">
         <Select
-          value={module.depth_layer}
+          value={placement.depth_layer}
           options={DEPTH_LAYERS}
-          onChange={(v) => onChange({ ...module, depth_layer: v })}
+          onChange={(v) => onPlacementChange({ ...placement, depth_layer: v })}
         />
       </Field>
 
@@ -298,14 +328,14 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
           <NumberInput
             value={pos.x ?? 0}
             min={-50} max={50}
-            onChange={(v) => onChange({ ...module, position: { ...pos, x: v } })}
+            onChange={(v) => onPlacementChange({ ...placement, position: { ...pos, x: v } })}
           />
         </Field>
         <Field label="Y (% from center)">
           <NumberInput
             value={pos.y ?? 0}
             min={-50} max={50}
-            onChange={(v) => onChange({ ...module, position: { ...pos, y: v } })}
+            onChange={(v) => onPlacementChange({ ...placement, position: { ...pos, y: v } })}
           />
         </Field>
       </div>
@@ -314,7 +344,7 @@ function LayoutTab({ module, onChange }: { module: ModuleWithActors; onChange: (
         <NumberInput
           value={pos.z ?? 0}
           min={-5} max={5}
-          onChange={(v) => onChange({ ...module, position: { ...pos, z: v } })}
+          onChange={(v) => onPlacementChange({ ...placement, position: { ...pos, z: v } })}
         />
       </Field>
 

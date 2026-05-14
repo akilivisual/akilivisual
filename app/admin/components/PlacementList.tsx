@@ -2,94 +2,101 @@
 
 import { useState, useEffect } from 'react'
 import { Reorder, useDragControls, AnimatePresence } from 'framer-motion'
-import type { ModuleWithActors, Actor } from '@/lib/schema/types'
-import { reorderModules } from '@/app/admin/actions/canvas'
-import { addModule, deleteModule, updateModule } from '@/app/admin/actions/modules'
+import type { PlacementWithModule, Actor } from '@/lib/schema/types'
+import { reorderPlacements } from '@/app/admin/actions/canvas'
+import { addModuleToCanvas, deletePlacement, updateModule } from '@/app/admin/actions/modules'
 import { ModuleEditPanel } from './ModuleEditPanel'
 
 const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'text_block', 'media', 'custom']
 
-interface ModuleListProps {
-  modules: ModuleWithActors[]
+interface PlacementListProps {
+  placements: PlacementWithModule[]
   canvasId: string
   onSaved?: () => void
 }
 
-export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListProps) {
-  const [modules, setModules] = useState(initial)
+export function PlacementList({ placements: initial, canvasId, onSaved }: PlacementListProps) {
+  const [placements, setPlacements] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState<ModuleWithActors | null>(null)
+  const [editing, setEditing] = useState<PlacementWithModule | null>(null)
 
-  // Sync with server data after revalidatePath pushes fresh RSC props
   useEffect(() => {
-    setModules(initial)
+    setPlacements(initial)
     setEditing(prev => {
       if (!prev) return prev
-      return initial.find(m => m.id === prev.id) ?? prev
+      return initial.find(p => p.id === prev.id) ?? prev
     })
   }, [initial])
 
-  async function handleAddModule(type: string) {
+  async function handleAdd(type: string) {
     setAdding(true)
-    const result = await addModule(canvasId, type, modules.length)
+    const result = await addModuleToCanvas(canvasId, type, placements.length)
     setAdding(false)
-    if (result.ok) {
+    if (result.ok && result.moduleId && result.placementId) {
       onSaved?.()
-      // Optimistically add a placeholder — page revalidation fills real data
-      const placeholder: ModuleWithActors = {
-        id: result.id!,
+      const placeholder: PlacementWithModule = {
+        id: result.placementId,
         canvas_id: canvasId,
-        module_type: type,
-        name: `New ${type}`,
-        depth_layer: 'midground',
-        order_index: modules.length,
-        props: {},
-        motion_profile: {},
-        interaction_profile: {},
-        resonance_profile: {},
-        metadata: {},
+        module_id: result.moduleId,
         position: {},
-        actors: [],
+        depth_layer: 'midground',
+        order_index: placements.length,
+        overrides: {},
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        module: {
+          id: result.moduleId,
+          module_type: type,
+          name: `New ${type}`,
+          props: {},
+          motion_profile: {},
+          interaction_profile: {},
+          resonance_profile: {},
+          metadata: {},
+          actors: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
       }
-      setModules((prev) => [...prev, placeholder])
+      setPlacements(prev => [...prev, placeholder])
     }
   }
 
-  async function handleDelete(moduleId: string) {
-    const snapshot = modules
-    setModules((prev) => prev.filter((m) => m.id !== moduleId))
-    const result = await deleteModule(moduleId)
+  async function handleDelete(placementId: string) {
+    const snapshot = placements
+    setPlacements(prev => prev.filter(p => p.id !== placementId))
+    const result = await deletePlacement(placementId)
     if (!result.ok) {
-      setModules(snapshot)
+      setPlacements(snapshot)
     } else {
       onSaved?.()
     }
   }
 
-  async function handleReorder(reordered: ModuleWithActors[]) {
-    setModules(reordered)
+  async function handleReorder(reordered: PlacementWithModule[]) {
+    setPlacements(reordered)
     setSaving(true)
-    await reorderModules(reordered.map((m) => m.id))
+    await reorderPlacements(reordered.map(p => p.id))
     setSaving(false)
   }
 
-  async function handleToggleHidden(moduleId: string) {
-    const mod = modules.find((m) => m.id === moduleId)
-    if (!mod) return
-    const currentProps = (mod.props ?? {}) as Record<string, unknown>
+  async function handleToggleHidden(placementId: string) {
+    const placement = placements.find(p => p.id === placementId)
+    if (!placement) return
+    const currentProps = (placement.module.props ?? {}) as Record<string, unknown>
     const newProps = { ...currentProps, hidden: !currentProps.hidden }
-    setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, props: newProps } : m))
-    await updateModule(moduleId, { props: newProps })
+    setPlacements(prev => prev.map(p =>
+      p.id === placementId ? { ...p, module: { ...p.module, props: newProps } } : p
+    ))
+    await updateModule(placement.module.id, { props: newProps })
     onSaved?.()
   }
 
-  function handleSaved(updatedModule?: ModuleWithActors) {
-    if (updatedModule) {
-      setModules(prev => prev.map(m => m.id === updatedModule.id ? updatedModule : m))
-      setEditing(updatedModule)
+  function handleSaved(updated?: PlacementWithModule) {
+    if (updated) {
+      setPlacements(prev => prev.map(p => p.id === updated.id ? updated : p))
+      setEditing(updated)
     }
     onSaved?.()
   }
@@ -97,9 +104,9 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
   return (
     <>
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 px-8">
           <p className="text-[10px] tracking-[0.3em] uppercase text-white/30">
-            Modules ({modules.length})
+            Modules ({placements.length})
           </p>
           {saving && (
             <span className="text-[10px] tracking-[0.15em] uppercase text-white/25 animate-pulse">
@@ -108,31 +115,32 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
           )}
         </div>
 
-        {modules.length === 0 ? (
-          <div className="border border-white/10 border-dashed flex items-center justify-center py-12">
+        {placements.length === 0 ? (
+          <div className="mx-8 border border-white/10 border-dashed flex items-center justify-center py-12">
             <p className="text-[11px] tracking-[0.25em] uppercase text-white/15">No modules</p>
           </div>
         ) : (
           <Reorder.Group
             axis="y"
-            values={modules}
+            values={placements}
             onReorder={handleReorder}
-            className="flex flex-col gap-2"
+            className="flex flex-col gap-2 px-8"
           >
-            {modules.map((mod, i) => (
-              <DraggableModule
-                key={mod.id}
-                module={mod}
+            {placements.map((placement, i) => (
+              <DraggablePlacement
+                key={placement.id}
+                placement={placement}
                 index={i}
-                onEdit={() => setEditing(mod)}
-                onDelete={() => handleDelete(mod.id)}
-                onToggleHidden={() => handleToggleHidden(mod.id)}
+                onEdit={() => setEditing(placement)}
+                onDelete={() => handleDelete(placement.id)}
+                onToggleHidden={() => handleToggleHidden(placement.id)}
               />
             ))}
           </Reorder.Group>
         )}
+
         {/* Add Module */}
-        <div className="border border-white/[0.08] border-dashed mt-3">
+        <div className="border border-white/[0.08] border-dashed mt-3 mx-8">
           <p className="text-[10px] tracking-[0.2em] uppercase text-white/20 px-5 pt-4 pb-2">
             Add Module
           </p>
@@ -140,7 +148,7 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
             {MODULE_TYPES.map((type) => (
               <button
                 key={type}
-                onClick={() => handleAddModule(type)}
+                onClick={() => handleAdd(type)}
                 disabled={adding}
                 className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors disabled:opacity-30"
               >
@@ -155,7 +163,7 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
       <AnimatePresence>
         {editing && (
           <ModuleEditPanel
-            module={editing}
+            placement={editing}
             onClose={() => setEditing(null)}
             onSaved={handleSaved}
           />
@@ -165,14 +173,14 @@ export function ModuleList({ modules: initial, canvasId, onSaved }: ModuleListPr
   )
 }
 
-function DraggableModule({
-  module,
+function DraggablePlacement({
+  placement,
   index,
   onEdit,
   onDelete,
   onToggleHidden,
 }: {
-  module: ModuleWithActors
+  placement: PlacementWithModule
   index: number
   onEdit: () => void
   onDelete: () => void
@@ -180,11 +188,12 @@ function DraggableModule({
 }) {
   const controls = useDragControls()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const hidden = !!((module.props as Record<string, unknown>)?.hidden)
+  const hidden = !!((placement.module.props as Record<string, unknown>)?.hidden)
+  const mod = placement.module
 
   return (
     <Reorder.Item
-      value={module}
+      value={placement}
       dragListener={false}
       dragControls={controls}
       className={`border border-white/10 cursor-default select-none transition-opacity ${hidden ? 'opacity-40 bg-transparent' : 'bg-white/[0.02]'}`}
@@ -200,7 +209,6 @@ function DraggableModule({
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-4 min-w-0 mr-3">
-          {/* Drag handle */}
           <div
             className="shrink-0 flex flex-col gap-[3px] cursor-grab active:cursor-grabbing px-1 py-1 opacity-30 hover:opacity-70 transition-opacity"
             onPointerDown={(e) => controls.start(e)}
@@ -215,21 +223,21 @@ function DraggableModule({
           <div className="min-w-0">
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-sm tracking-wide text-white truncate">
-                {module.name ?? module.module_type}
+                {mod.name ?? mod.module_type}
               </span>
               <span className="shrink-0 text-[10px] tracking-[0.15em] uppercase text-white/25 border border-white/10 px-2 py-0.5">
-                {module.module_type}
+                {mod.module_type}
               </span>
             </div>
             <p className="text-[10px] text-white/25 mt-0.5 tracking-[0.1em]">
-              layer: {module.depth_layer} · order: {module.order_index}
+              layer: {placement.depth_layer} · order: {placement.order_index}
             </p>
           </div>
         </div>
 
         <div className="shrink-0 flex items-center gap-3">
           <span className="text-[10px] tracking-[0.15em] uppercase text-white/25">
-            {module.actors.length} {module.actors.length === 1 ? 'actor' : 'actors'}
+            {mod.actors.length} {mod.actors.length === 1 ? 'actor' : 'actors'}
           </span>
           <button
             onClick={onToggleHidden}
@@ -268,9 +276,9 @@ function DraggableModule({
       </div>
 
       {/* Actor rows */}
-      {module.actors.length > 0 && (
+      {mod.actors.length > 0 && (
         <div className="divide-y divide-white/[0.04]">
-          {module.actors.map((actor, i) => (
+          {mod.actors.map((actor, i) => (
             <ActorRow key={actor.id} actor={actor} index={i} />
           ))}
         </div>

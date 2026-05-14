@@ -1,14 +1,14 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import type { CanvasWithModules, ModuleWithActors } from '@/lib/schema/types'
+import type { CanvasWithPlacements, PlacementWithModule, ModuleWithActors } from '@/lib/schema/types'
 import { ModuleRenderer } from './ModuleRenderer'
 import { useParallax } from './hooks/useParallax'
 import { useTilt } from './hooks/useTilt'
 import { useNavigation } from './context/NavigationContext'
 
 interface CanvasRendererProps {
-  canvas: CanvasWithModules
+  canvas: CanvasWithPlacements
 }
 
 export function CanvasRenderer({ canvas }: CanvasRendererProps) {
@@ -27,15 +27,15 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           ease: transition?.easing ?? 'easeInOut',
         }}
       >
-        {canvas.modules.map((mod) => {
-          const pos = (mod.position ?? {}) as Record<string, unknown>
+        {canvas.placements.map((placement) => {
+          const pos = (placement.position ?? {}) as Record<string, unknown>
           const mx = (pos.x as number) ?? 0
           const my = (pos.y as number) ?? 0
           const mz = (pos.z as number) ?? 0
-          const depthZ = { background: 0, midground: 5, foreground: 10 }[mod.depth_layer ?? 'midground'] ?? 5
+          const depthZ = { background: 0, midground: 5, foreground: 10 }[placement.depth_layer ?? 'midground'] ?? 5
           return (
             <div
-              key={mod.id}
+              key={placement.id}
               style={{
                 position: 'absolute',
                 left: `calc(50% + ${mx}%)`,
@@ -47,8 +47,8 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
                 pointerEvents: 'none',
               }}
             >
-              <ModuleWrapper mod={mod}>
-                <ModuleRenderer module={mod} />
+              <ModuleWrapper placement={placement}>
+                <ModuleRenderer module={placement.module} />
               </ModuleWrapper>
             </div>
           )
@@ -58,10 +58,8 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
   )
 }
 
-// Isolated component so hooks are always called at a stable component boundary.
-// Parallax adds x/y translation; tilt adds rotateX/rotateY — both on same motion.div,
-// composing cleanly without touching entrance or ambient animations inside.
-function ModuleWrapper({ mod, children }: { mod: ModuleWithActors; children: React.ReactNode }) {
+function ModuleWrapper({ placement, children }: { placement: PlacementWithModule; children: React.ReactNode }) {
+  const mod: ModuleWithActors = placement.module
   const ip = (mod.interaction_profile ?? {}) as Record<string, unknown>
   const parallaxEnabled = !!ip.parallax_enabled
   const tiltEnabled = !!ip.tilt_enabled
@@ -82,7 +80,7 @@ function ModuleWrapper({ mod, children }: { mod: ModuleWithActors; children: Rea
   }
 
   // Always called — hooks are stable regardless of enabled flags
-  const { px, py } = useParallax(mod.depth_layer ?? 'midground', parallaxEnabled ? strength : 0)
+  const { px, py } = useParallax(placement.depth_layer ?? 'midground', parallaxEnabled ? strength : 0)
   const { rotateX, rotateY, onMouseMove, onMouseLeave } = useTilt(tiltEnabled ? tiltMax : 0)
 
   return (

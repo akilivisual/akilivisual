@@ -15,12 +15,9 @@ export function EmbedModule({ module }: EmbedModuleProps) {
   const opacity = (props.opacity as number) ?? 1
   const borderRadius = (props.border_radius as number) ?? 0
 
-  const pos = (module.position ?? {}) as { x?: number; y?: number }
-
   return (
     <motion.div
-      className="absolute"
-      style={getEmbedPosition(pos.x, pos.y)}
+      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
       initial={{ opacity: 0 }}
       animate={{ opacity }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -42,12 +39,6 @@ export function EmbedModule({ module }: EmbedModuleProps) {
   )
 }
 
-function getEmbedPosition(x?: number, y?: number): React.CSSProperties {
-  if (x !== undefined && y !== undefined) {
-    return { left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }
-  }
-  return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }
-}
 
 function IframeEmbed({ props }: { props: Record<string, unknown> }) {
   const url = (props.url as string) ?? ''

@@ -1,7 +1,38 @@
 import { getSupabase } from './client'
-import type { Canvas, Module, Actor, CanvasWithModules, ModuleWithActors } from '@/lib/schema/types'
+import type { Canvas, Module, Actor, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
 
-export async function fetchCanvasBySlug(slug: string): Promise<CanvasWithModules | null> {
+async function fetchPlacements(supabase: ReturnType<typeof getSupabase>, canvasId: string): Promise<PlacementWithModule[]> {
+  const { data: placements } = await supabase
+    .from('canvas_placements')
+    .select('*')
+    .eq('canvas_id', canvasId)
+    .order('order_index')
+
+  if (!placements) return []
+
+  return Promise.all(
+    (placements as CanvasPlacement[]).map(async (placement) => {
+      const { data: mod } = await supabase
+        .from('modules')
+        .select('*')
+        .eq('id', placement.module_id)
+        .single()
+
+      if (!mod) return { ...placement, module: { id: placement.module_id, module_type: 'unknown', name: null, props: {}, motion_profile: {}, interaction_profile: {}, resonance_profile: {}, metadata: {}, created_at: '', updated_at: '', actors: [] } }
+
+      const { data: actors } = await supabase
+        .from('actors')
+        .select('*')
+        .eq('module_id', mod.id)
+        .order('order_index')
+
+      const moduleWithActors: ModuleWithActors = { ...(mod as Module), actors: (actors ?? []) as Actor[] }
+      return { ...placement, module: moduleWithActors }
+    })
+  )
+}
+
+export async function fetchCanvasBySlug(slug: string): Promise<CanvasWithPlacements | null> {
   const supabase = getSupabase()
 
   const { data: canvas, error: canvasError } = await supabase
@@ -12,32 +43,11 @@ export async function fetchCanvasBySlug(slug: string): Promise<CanvasWithModules
 
   if (canvasError || !canvas) return null
 
-  const typedCanvas = canvas as Canvas
-
-  const { data: modules } = await supabase
-    .from('modules')
-    .select('*')
-    .eq('canvas_id', typedCanvas.id)
-    .order('order_index')
-
-  const typedModules = (modules ?? []) as Module[]
-
-  const modulesWithActors: ModuleWithActors[] = await Promise.all(
-    typedModules.map(async (mod) => {
-      const { data: actors } = await supabase
-        .from('actors')
-        .select('*')
-        .eq('module_id', mod.id)
-        .order('order_index')
-
-      return { ...mod, actors: (actors ?? []) as Actor[] }
-    })
-  )
-
-  return { ...typedCanvas, modules: modulesWithActors }
+  const placements = await fetchPlacements(supabase, (canvas as Canvas).id)
+  return { ...(canvas as Canvas), placements }
 }
 
-export async function fetchAllCanvases(): Promise<CanvasWithModules[]> {
+export async function fetchAllCanvases(): Promise<CanvasWithPlacements[]> {
   const supabase = getSupabase()
 
   const { data: canvases } = await supabase
@@ -49,30 +59,13 @@ export async function fetchAllCanvases(): Promise<CanvasWithModules[]> {
 
   return Promise.all(
     (canvases as Canvas[]).map(async (canvas) => {
-      const { data: modules } = await supabase
-        .from('modules')
-        .select('*')
-        .eq('canvas_id', canvas.id)
-        .order('order_index')
-
-      const modulesWithActors: ModuleWithActors[] = await Promise.all(
-        ((modules ?? []) as Module[]).map(async (mod) => {
-          const { data: actors } = await supabase
-            .from('actors')
-            .select('*')
-            .eq('module_id', mod.id)
-            .order('order_index')
-
-          return { ...mod, actors: (actors ?? []) as Actor[] }
-        })
-      )
-
-      return { ...canvas, modules: modulesWithActors }
+      const placements = await fetchPlacements(supabase, canvas.id)
+      return { ...canvas, placements }
     })
   )
 }
 
-export async function fetchCanvasesByProject(projectSlug: string): Promise<CanvasWithModules[]> {
+export async function fetchCanvasesByProject(projectSlug: string): Promise<CanvasWithPlacements[]> {
   const supabase = getSupabase()
 
   const { data: project } = await supabase
@@ -93,25 +86,8 @@ export async function fetchCanvasesByProject(projectSlug: string): Promise<Canva
 
   return Promise.all(
     (canvases as Canvas[]).map(async (canvas) => {
-      const { data: modules } = await supabase
-        .from('modules')
-        .select('*')
-        .eq('canvas_id', canvas.id)
-        .order('order_index')
-
-      const modulesWithActors: ModuleWithActors[] = await Promise.all(
-        ((modules ?? []) as Module[]).map(async (mod) => {
-          const { data: actors } = await supabase
-            .from('actors')
-            .select('*')
-            .eq('module_id', mod.id)
-            .order('order_index')
-
-          return { ...mod, actors: (actors ?? []) as Actor[] }
-        })
-      )
-
-      return { ...canvas, modules: modulesWithActors }
+      const placements = await fetchPlacements(supabase, canvas.id)
+      return { ...canvas, placements }
     })
   )
 }

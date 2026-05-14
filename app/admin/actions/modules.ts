@@ -3,14 +3,12 @@
 import { getAdminSupabase } from '@/lib/supabase/admin-client'
 import { revalidatePath } from 'next/cache'
 
-// ── Module ──────────────────────────────────────────────────────────
+// ── Module (global prefab) ───────────────────────────────────────────
 
 export async function updateModule(
   id: string,
   patch: {
     name?: string
-    depth_layer?: string
-    position?: Record<string, unknown>
     motion_profile?: Record<string, unknown>
     interaction_profile?: Record<string, unknown>
     resonance_profile?: Record<string, unknown>
@@ -23,6 +21,111 @@ export async function updateModule(
   if (!data?.length) return { ok: false, error: 'Module not found in database' }
   revalidatePath('/admin/canvas/[slug]', 'page')
   return { ok: true }
+}
+
+export async function addModule(
+  type: string
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const supabase = getAdminSupabase()
+
+  const { data, error } = await supabase
+    .from('modules')
+    .insert({
+      module_type: type,
+      name: `New ${type}`,
+      props: defaultModuleProps(type),
+      motion_profile: {},
+      interaction_profile: {},
+      resonance_profile: {},
+      metadata: {},
+    })
+    .select('id')
+    .single()
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, id: data.id }
+}
+
+export async function deleteModule(id: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  // Manual delete actors (no CASCADE guarantee on actors.module_id)
+  const { error: actorError } = await supabase.from('actors').delete().eq('module_id', id)
+  if (actorError) return { ok: false, error: actorError.message }
+  // canvas_placements cascade on module DELETE (via FK CASCADE)
+  const { error } = await supabase.from('modules').delete().eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin/canvas/[slug]', 'page')
+  return { ok: true }
+}
+
+// ── Placement (canvas ↔ module instance) ────────────────────────────
+
+export async function addPlacement(
+  canvasId: string,
+  moduleId: string,
+  orderIndex: number
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { data, error } = await supabase
+    .from('canvas_placements')
+    .insert({
+      canvas_id: canvasId,
+      module_id: moduleId,
+      position: {},
+      depth_layer: 'midground',
+      order_index: orderIndex,
+      overrides: {},
+    })
+    .select('id')
+    .single()
+
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin/canvas/[slug]', 'page')
+  return { ok: true, id: data.id }
+}
+
+export async function updatePlacement(
+  id: string,
+  patch: {
+    position?: Record<string, unknown>
+    depth_layer?: string
+    overrides?: Record<string, unknown>
+  }
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { data, error } = await supabase.from('canvas_placements').update(patch).eq('id', id).select()
+  if (error) return { ok: false, error: error.message }
+  if (!data?.length) return { ok: false, error: 'Placement not found' }
+  revalidatePath('/admin/canvas/[slug]', 'page')
+  return { ok: true }
+}
+
+export async function deletePlacement(id: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { error } = await supabase.from('canvas_placements').delete().eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin/canvas/[slug]', 'page')
+  return { ok: true }
+}
+
+// Convenience: create a new global module + immediately place it on a canvas
+export async function addModuleToCanvas(
+  canvasId: string,
+  type: string,
+  orderIndex: number
+): Promise<{ ok: boolean; moduleId?: string; placementId?: string; error?: string }> {
+  const moduleResult = await addModule(type)
+  if (!moduleResult.ok || !moduleResult.id) return { ok: false, error: moduleResult.error }
+
+  const placementResult = await addPlacement(canvasId, moduleResult.id, orderIndex)
+  if (!placementResult.ok || !placementResult.id) {
+    // Roll back the orphan module
+    await deleteModule(moduleResult.id)
+    return { ok: false, error: placementResult.error }
+  }
+
+  revalidatePath('/admin/canvas/[slug]', 'page')
+  return { ok: true, moduleId: moduleResult.id, placementId: placementResult.id }
 }
 
 // ── Actor ───────────────────────────────────────────────────────────
@@ -101,40 +204,6 @@ export async function addActor(
   return { ok: true, id: data.id }
 }
 
-function defaultModuleProps(type: string): Record<string, unknown> {
-  if (type === 'embed') {
-    return { embed_type: 'iframe', url: '', width: null, height: 500, opacity: 1, border_radius: 0 }
-  }
-  return {}
-}
-
-export async function addModule(
-  canvasId: string,
-  type: string,
-  orderIndex: number
-): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const supabase = getAdminSupabase()
-
-  const { data, error } = await supabase
-    .from('modules')
-    .insert({
-      canvas_id: canvasId,
-      module_type: type,
-      name: `New ${type}`,
-      depth_layer: 'midground',
-      order_index: orderIndex,
-      props: defaultModuleProps(type),
-      motion_profile: {},
-      resonance_profile: {},
-    })
-    .select('id')
-    .single()
-
-  if (error) return { ok: false, error: error.message }
-  revalidatePath('/admin/canvas/[slug]', 'page')
-  return { ok: true, id: data.id }
-}
-
 export async function deleteActor(id: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = getAdminSupabase()
   const { error } = await supabase.from('actors').delete().eq('id', id)
@@ -143,12 +212,11 @@ export async function deleteActor(id: string): Promise<{ ok: boolean; error?: st
   return { ok: true }
 }
 
-export async function deleteModule(id: string): Promise<{ ok: boolean; error?: string }> {
-  const supabase = getAdminSupabase()
-  const { error: actorError } = await supabase.from('actors').delete().eq('module_id', id)
-  if (actorError) return { ok: false, error: actorError.message }
-  const { error } = await supabase.from('modules').delete().eq('id', id)
-  if (error) return { ok: false, error: error.message }
-  revalidatePath('/admin/canvas/[slug]', 'page')
-  return { ok: true }
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function defaultModuleProps(type: string): Record<string, unknown> {
+  if (type === 'embed') {
+    return { embed_type: 'iframe', url: '', width: null, height: 500, opacity: 1, border_radius: 0 }
+  }
+  return {}
 }

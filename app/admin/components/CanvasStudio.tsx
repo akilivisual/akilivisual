@@ -2,17 +2,17 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import type { CanvasWithModules } from '@/lib/schema/types'
-import { ModuleList } from './ModuleList'
+import type { CanvasWithPlacements } from '@/lib/schema/types'
+import { PlacementList } from './PlacementList'
 import { DeleteCanvasButton } from './DeleteCanvasButton'
 
 interface CanvasStudioProps {
-  canvas: CanvasWithModules
+  canvas: CanvasWithPlacements
 }
 
 export function CanvasStudio({ canvas }: CanvasStudioProps) {
   const [refreshKey, setRefreshKey] = useState(0)
-  const totalActors = canvas.modules.reduce((n, m) => n + m.actors.length, 0)
+  const totalActors = canvas.placements.reduce((n, p) => n + p.module.actors.length, 0)
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -44,7 +44,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
         <div className="grid grid-cols-3 gap-2 px-8 py-5 border-b border-white/[0.06] shrink-0">
           {[
             { label: 'Type', value: canvas.canvas_type },
-            { label: 'Modules', value: canvas.modules.length },
+            { label: 'Modules', value: canvas.placements.length },
             { label: 'Actors', value: totalActors },
           ].map((s) => (
             <div key={s.label} className="border border-white/10 bg-white/[0.02] px-3 py-3">
@@ -54,26 +54,15 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
           ))}
         </div>
 
-        {/* Module list */}
+        {/* Placement list */}
         <div className="py-5 flex-1">
-          <ModuleList
-            modules={canvas.modules}
+          <PlacementList
+            placements={canvas.placements}
             canvasId={canvas.id}
             onSaved={() => setRefreshKey((k) => k + 1)}
           />
         </div>
 
-        {/* Resonance profile */}
-        {canvas.resonance_profile && Object.keys(canvas.resonance_profile).length > 0 && (
-          <div className="px-8 pb-8 shrink-0">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-white/30 mb-3">Resonance Profile</p>
-            <div className="border border-white/10 bg-white/[0.02] px-4 py-3">
-              <pre className="text-[11px] text-white/40 font-mono leading-relaxed overflow-x-auto">
-                {JSON.stringify(canvas.resonance_profile, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Right panel — live preview ──────────────────────── */}
