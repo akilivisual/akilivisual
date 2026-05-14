@@ -34,6 +34,7 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           const mz = (pos.z as number) ?? 0
           const mw = pos.width as number | undefined
           const mh = pos.height as number | undefined
+          const mr = (pos.rotate as number) ?? 0
           const depthZ = { background: 0, midground: 5, foreground: 10 }[placement.depth_layer ?? 'midground'] ?? 5
 
           // When the placement has explicit dimensions, media fills the container
@@ -58,7 +59,7 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
                 top: `calc(50% + ${my}%)`,
                 width: mw !== undefined ? `${mw}%` : '100%',
                 height: mh !== undefined ? `${mh}%` : '100%',
-                transform: 'translate(-50%, -50%)',
+                transform: `translate(-50%, -50%) rotate(${mr}deg)`,
                 zIndex: depthZ + mz,
                 pointerEvents: 'none',
                 overflow: hasExplicitSize ? 'hidden' : undefined,
