@@ -367,6 +367,26 @@ function LayoutTab({
         />
       </Field>
 
+      <Divider label="Size" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">As % of the stage. Leave at 100 to fill the full surface.</p>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Width (%)">
+          <NumberInput
+            value={(pos.width as number) ?? 100}
+            min={5} max={200}
+            onChange={(v) => onPlacementChange({ ...placement, position: { ...pos, width: v } })}
+          />
+        </Field>
+        <Field label="Height (%)">
+          <NumberInput
+            value={(pos.height as number) ?? 100}
+            min={5} max={200}
+            onChange={(v) => onPlacementChange({ ...placement, position: { ...pos, height: v } })}
+          />
+        </Field>
+      </div>
+
     </div>
   )
 }

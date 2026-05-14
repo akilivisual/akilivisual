@@ -38,6 +38,9 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
     if (width !== undefined) newPos.width = width
     if (height !== undefined) newPos.height = height
     setPlacements(prev => prev.map(p => p.id === placementId ? { ...p, position: newPos } : p))
+    if (editing?.id === placementId) {
+      setEditing(prev => prev ? { ...prev, position: newPos } : prev)
+    }
     await updatePlacement(placementId, { position: newPos })
   }
 
