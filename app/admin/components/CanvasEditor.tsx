@@ -239,6 +239,9 @@ function ModuleCard({
     )
   }
 
+  const fullCanvas = hasFullWidth && localW === undefined
+  const handleClass = `w-3 h-3 border border-white/60 bg-[#080808] pointer-events-auto absolute`
+
   return (
     <div
       className={`absolute pointer-events-auto transition-opacity ${hidden ? 'opacity-30' : ''} ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
@@ -253,6 +256,38 @@ function ModuleCard({
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* Always-visible label strip above card — unobtrusive, not full-canvas */}
+      {!fullCanvas && (
+        <div className="absolute -top-5 left-0 right-0 flex items-center gap-1.5 pointer-events-none">
+          <div className={`w-1 h-1 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
+          <span className="text-[9px] text-white/30 truncate flex-1 min-w-0">
+            {mod.name ?? mod.module_type}
+          </span>
+          <span className="text-[9px] tracking-[0.1em] uppercase text-white/15 border border-white/[0.06] px-1 py-px leading-none">
+            {mod.module_type}
+          </span>
+          <span className="text-[9px] text-white/15 font-mono tabular-nums">
+            {localX.toFixed(1)}, {localY.toFixed(1)}
+            {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
+          </span>
+          {selected && (
+            <button
+              className={`pointer-events-auto shrink-0 text-[9px] tracking-[0.1em] uppercase px-2 py-px border transition-colors ${
+                confirmDelete ? 'border-red-500/60 text-red-400' : 'border-white/20 text-white/30 hover:text-red-400/70 hover:border-red-500/30'
+              }`}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (confirmDelete) { onDelete() }
+                else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
+              }}
+            >
+              {confirmDelete ? 'Sure?' : 'Remove'}
+            </button>
+          )}
+        </div>
+      )}
+
       <div
         ref={cardRef}
         className={`relative border transition-all overflow-hidden w-full h-full ${
@@ -265,89 +300,54 @@ function ModuleCard({
         }}
       >
         <ModulePreview module={mod} fillCard={fillCard} />
-        {/* Label: overlay when card is explicitly sized, flow when thumbnail */}
-        <div className={`px-3 py-2 bg-black/60 ${fillCard ? 'absolute bottom-0 left-0 right-0 z-10' : ''}`}>
-          <div className="flex items-center gap-2 mb-0.5">
-            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
-            <span className="text-[11px] tracking-wide text-white/80 truncate">
-              {mod.name ?? mod.module_type}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] tracking-[0.1em] uppercase text-white/25 border border-white/[0.08] px-1.5 py-0.5">
-              {mod.module_type}
-            </span>
-            <span className="text-[9px] text-white/15 font-mono tabular-nums">
-              {localX.toFixed(1)}, {localY.toFixed(1)}
-              {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Selection: resize handles + delete button */}
-      {selected && (() => {
-        // Full-canvas mode: controls go inside the card to avoid overflow clipping
-        const fullCanvas = hasFullWidth && localW === undefined
-        const handleClass = `w-3 h-3 border border-white/60 bg-[#080808] pointer-events-auto absolute`
-        return (
+        {/* Full-canvas: minimal inside-card label + remove (can't go outside — canvas overflow clips it) */}
+        {fullCanvas && (
           <>
-            {fullCanvas ? (
-              <>
-                {/* Remove inside card */}
-                <button
-                  className={`absolute top-3 right-3 z-20 text-[9px] tracking-[0.1em] uppercase px-2 py-1 border transition-colors pointer-events-auto ${
-                    confirmDelete ? 'border-red-500/60 text-red-400' : 'border-white/20 text-white/40 hover:text-red-400/70 hover:border-red-500/30'
-                  }`}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (confirmDelete) { onDelete() }
-                    else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
-                  }}
-                >
-                  {confirmDelete ? 'Sure?' : 'Remove'}
-                </button>
-                {/* Inset handles */}
-                <div className={`${handleClass} top-1 left-1 cursor-nw-resize`} onMouseDown={(e) => handleResizeMouseDown('tl', e)} />
-                <div className={`${handleClass} top-1 right-1 cursor-ne-resize`} onMouseDown={(e) => handleResizeMouseDown('tr', e)} />
-                <div className={`${handleClass} bottom-1 left-1 cursor-sw-resize`} onMouseDown={(e) => handleResizeMouseDown('bl', e)} />
-                <div className={`${handleClass} bottom-1 right-1 cursor-se-resize`} onMouseDown={(e) => handleResizeMouseDown('br', e)} />
-              </>
-            ) : (
-              <>
-                {/* Remove above card */}
-                <div className="absolute -top-7 left-0 right-0 flex items-center justify-between gap-2 pointer-events-auto">
-                  {hasFullWidth && (
-                    <span className="text-[9px] text-white/35 font-mono truncate">
-                      {mod.name ?? mod.module_type} · {localX.toFixed(1)}, {localY.toFixed(1)}
-                      {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
-                    </span>
-                  )}
-                  <button
-                    className={`ml-auto text-[9px] tracking-[0.1em] uppercase px-2 py-1 border transition-colors ${
-                      confirmDelete ? 'border-red-500/60 text-red-400' : 'border-white/20 text-white/30 hover:text-red-400/70 hover:border-red-500/30'
-                    }`}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (confirmDelete) { onDelete() }
-                      else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
-                    }}
-                  >
-                    {confirmDelete ? 'Sure?' : 'Remove'}
-                  </button>
-                </div>
-                {/* Outer handles */}
-                <div className={`${handleClass} -top-1.5 -left-1.5 cursor-nw-resize`} onMouseDown={(e) => handleResizeMouseDown('tl', e)} />
-                <div className={`${handleClass} -top-1.5 -right-1.5 cursor-ne-resize`} onMouseDown={(e) => handleResizeMouseDown('tr', e)} />
-                <div className={`${handleClass} -bottom-1.5 -left-1.5 cursor-sw-resize`} onMouseDown={(e) => handleResizeMouseDown('bl', e)} />
-                <div className={`${handleClass} -bottom-1.5 -right-1.5 cursor-se-resize`} onMouseDown={(e) => handleResizeMouseDown('br', e)} />
-              </>
+            <div className="absolute top-2 left-3 z-20 flex items-center gap-1.5 pointer-events-none">
+              <div className={`w-1 h-1 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
+              <span className="text-[9px] text-white/30 truncate max-w-[200px]">
+                {mod.name ?? mod.module_type}
+              </span>
+            </div>
+            {selected && (
+              <button
+                className={`absolute top-2 right-3 z-20 text-[9px] tracking-[0.1em] uppercase px-2 py-px border transition-colors pointer-events-auto ${
+                  confirmDelete ? 'border-red-500/60 text-red-400' : 'border-white/20 text-white/40 hover:text-red-400/70 hover:border-red-500/30'
+                }`}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (confirmDelete) { onDelete() }
+                  else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
+                }}
+              >
+                {confirmDelete ? 'Sure?' : 'Remove'}
+              </button>
             )}
           </>
-        )
-      })()}
+        )}
+      </div>
+
+      {/* Resize handles — selected only */}
+      {selected && (
+        <>
+          {fullCanvas ? (
+            <>
+              <div className={`${handleClass} top-1 left-1 cursor-nw-resize`} onMouseDown={(e) => handleResizeMouseDown('tl', e)} />
+              <div className={`${handleClass} top-1 right-1 cursor-ne-resize`} onMouseDown={(e) => handleResizeMouseDown('tr', e)} />
+              <div className={`${handleClass} bottom-1 left-1 cursor-sw-resize`} onMouseDown={(e) => handleResizeMouseDown('bl', e)} />
+              <div className={`${handleClass} bottom-1 right-1 cursor-se-resize`} onMouseDown={(e) => handleResizeMouseDown('br', e)} />
+            </>
+          ) : (
+            <>
+              <div className={`${handleClass} -top-1.5 -left-1.5 cursor-nw-resize`} onMouseDown={(e) => handleResizeMouseDown('tl', e)} />
+              <div className={`${handleClass} -top-1.5 -right-1.5 cursor-ne-resize`} onMouseDown={(e) => handleResizeMouseDown('tr', e)} />
+              <div className={`${handleClass} -bottom-1.5 -left-1.5 cursor-sw-resize`} onMouseDown={(e) => handleResizeMouseDown('bl', e)} />
+              <div className={`${handleClass} -bottom-1.5 -right-1.5 cursor-se-resize`} onMouseDown={(e) => handleResizeMouseDown('br', e)} />
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }
