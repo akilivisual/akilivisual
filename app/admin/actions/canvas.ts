@@ -59,3 +59,61 @@ export async function reorderPlacements(
 
 // Legacy alias kept briefly for any remaining callers
 export const reorderModules = reorderPlacements
+
+export async function deleteCanvasById(id: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { error } = await supabase.from('canvases').delete().eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin')
+  return { ok: true }
+}
+
+export async function duplicateCanvas(id: string): Promise<{ ok: boolean; slug?: string; error?: string }> {
+  const supabase = getAdminSupabase()
+
+  const { data: source } = await supabase
+    .from('canvases')
+    .select('*, canvas_placements(*)')
+    .eq('id', id)
+    .single()
+  if (!source) return { ok: false, error: 'State not found' }
+
+  // Build a unique slug: strip trailing _N, find next unused number
+  const baseSlug = source.slug.replace(/_\d+$/, '')
+  const { data: existing } = await supabase.from('canvases').select('slug').ilike('slug', `${baseSlug}%`)
+  const suffixes = (existing ?? []).map((r: { slug: string }) => {
+    const m = r.slug.match(/_(\d+)$/)
+    return m ? parseInt(m[1]) : 1
+  })
+  const nextN = suffixes.length === 0 ? 2 : Math.max(...suffixes) + 1
+  const newSlug = `${baseSlug}_${nextN}`
+
+  const { data: newCanvas, error: cErr } = await supabase
+    .from('canvases')
+    .insert({
+      title: `${source.title} ${nextN}`,
+      slug: newSlug,
+      canvas_type: source.canvas_type,
+      order_index: source.order_index + 0.5,
+      background_type: source.background_type,
+      resonance_profile: source.resonance_profile,
+      transition_profile: source.transition_profile,
+      metadata: source.metadata,
+    })
+    .select()
+    .single()
+  if (cErr) return { ok: false, error: cErr.message }
+
+  const placements = (source.canvas_placements ?? []) as Record<string, unknown>[]
+  if (placements.length > 0) {
+    await supabase.from('canvas_placements').insert(
+      placements.map(({ id: _id, canvas_id: _cid, created_at: _ca, updated_at: _ua, ...rest }) => ({
+        ...rest,
+        canvas_id: newCanvas.id,
+      }))
+    )
+  }
+
+  revalidatePath('/admin')
+  return { ok: true, slug: newSlug }
+}
