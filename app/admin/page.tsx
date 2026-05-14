@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { adminFetchAllCanvases } from '@/lib/supabase/admin'
 import type { CanvasWithPlacements } from '@/lib/schema/types'
-import { SeedButton } from './components/SeedButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,15 +25,12 @@ export default async function AdminDashboard() {
           <p className="text-[10px] tracking-[0.3em] uppercase text-white/25 mb-1">Runtime</p>
           <h1 className="text-2xl font-light tracking-wide text-white">States</h1>
         </div>
-        <div className="flex items-center gap-3">
-          <SeedButton />
-          <Link
-            href="/admin/canvas/new"
-            className="px-4 py-2 border border-white/20 text-[11px] tracking-[0.2em] uppercase text-white/60 hover:text-white hover:border-white/50 transition-colors"
-          >
-            + New State
-          </Link>
-        </div>
+        <Link
+          href="/admin/canvas/new"
+          className="px-4 py-2 border border-white/20 text-[11px] tracking-[0.2em] uppercase text-white/60 hover:text-white hover:border-white/50 transition-colors"
+        >
+          + New State
+        </Link>
       </div>
 
       {/* Stats row */}
@@ -118,11 +114,14 @@ function EmptyState() {
       <div className="w-1 h-1 rounded-full bg-white/20" />
       <p className="text-[11px] tracking-[0.3em] uppercase text-white/20">No states yet</p>
       <p className="text-[11px] text-white/15 max-w-xs text-center leading-relaxed">
-        Seed State_0001 to boot the runtime — atmosphere, logo, and two pulsing orbs.
+        Create your first coherence state to begin composing the surface.
       </p>
-      <div className="mt-2">
-        <SeedButton />
-      </div>
+      <Link
+        href="/admin/canvas/new"
+        className="mt-2 px-5 py-2.5 border border-white/20 text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white hover:border-white/50 transition-colors"
+      >
+        + New State
+      </Link>
     </div>
   )
 }
