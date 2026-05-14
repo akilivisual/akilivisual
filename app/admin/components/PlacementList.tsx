@@ -14,9 +14,10 @@ interface PlacementListProps {
   selectedId: string | null
   onEdit: (placement: PlacementWithModule) => void
   onSaved?: () => void
+  onAdd?: (placement: PlacementWithModule) => void
 }
 
-export function PlacementList({ placements: initial, canvasId, selectedId, onEdit, onSaved }: PlacementListProps) {
+export function PlacementList({ placements: initial, canvasId, selectedId, onEdit, onSaved, onAdd }: PlacementListProps) {
   const [placements, setPlacements] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -55,6 +56,7 @@ export function PlacementList({ placements: initial, canvasId, selectedId, onEdi
         },
       }
       setPlacements(prev => [...prev, placeholder])
+      onAdd?.(placeholder)
       onSaved?.()
     }
   }
