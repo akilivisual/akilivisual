@@ -7,7 +7,7 @@ interface Props {
   placements: PlacementWithModule[]
   selectedId: string | null
   onSelect: (placement: PlacementWithModule) => void
-  onCommit: (placementId: string, x: number, y: number, width?: number, height?: number) => void
+  onCommit: (placementId: string, x: number, y: number, width?: number, height?: number, rotate?: number) => void
   onDelete: (placementId: string) => void
 }
 
@@ -52,7 +52,7 @@ export function CanvasEditor({ placements, selectedId, onSelect, onCommit, onDel
           selected={selectedId === placement.id}
           containerRef={containerRef}
           onSelect={() => onSelect(placement)}
-          onCommit={(x, y, w, h) => onCommit(placement.id, x, y, w, h)}
+          onCommit={(x, y, w, h, r) => onCommit(placement.id, x, y, w, h, r)}
           onDelete={() => onDelete(placement.id)}
         />
       ))}
@@ -72,7 +72,7 @@ function ModuleCard({
   selected: boolean
   containerRef: React.RefObject<HTMLDivElement | null>
   onSelect: () => void
-  onCommit: (x: number, y: number, width?: number, height?: number) => void
+  onCommit: (x: number, y: number, width?: number, height?: number, rotate?: number) => void
   onDelete: () => void
 }) {
   const mod = placement.module
@@ -84,6 +84,7 @@ function ModuleCard({
   const [localY, setLocalY] = useState(pos.y ?? 0)
   const [localW, setLocalW] = useState<number | undefined>(pos.width as number | undefined)
   const [localH, setLocalH] = useState<number | undefined>(pos.height as number | undefined)
+  const [localRotate, setLocalRotate] = useState(pos.rotate ?? 0)
   const [dragging, setDragging] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -95,8 +96,9 @@ function ModuleCard({
       setLocalY(pos.y ?? 0)
       setLocalW(pos.width as number | undefined)
       setLocalH(pos.height as number | undefined)
+      setLocalRotate(pos.rotate ?? 0)
     }
-  }, [pos.x, pos.y, pos.width, pos.height, dragging])
+  }, [pos.x, pos.y, pos.width, pos.height, pos.rotate, dragging])
 
   function handleMouseDown(e: React.MouseEvent) {
     e.preventDefault()
@@ -125,7 +127,7 @@ function ModuleCard({
       const ny = Math.round((dragRef.current.py + dy) * 10) / 10
       setLocalX(nx)
       setLocalY(ny)
-      onCommit(nx, ny, localW, localH)
+      onCommit(nx, ny, localW, localH, localRotate)
       setDragging(false)
       dragRef.current = null
       window.removeEventListener('mousemove', onMove)
@@ -179,7 +181,36 @@ function ModuleCard({
       setLocalH(nh)
       setLocalX(nx)
       setLocalY(ny)
-      onCommit(nx, ny, nw, nh)
+      onCommit(nx, ny, nw, nh, localRotate)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  function handleRotateMouseDown(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    onSelect()
+
+    const card = cardRef.current
+    if (!card) return
+
+    const rect = card.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+
+    function onMove(ev: MouseEvent) {
+      const angle = Math.atan2(ev.clientX - centerX, -(ev.clientY - centerY)) * (180 / Math.PI)
+      setLocalRotate(angle)
+    }
+
+    function onUp(ev: MouseEvent) {
+      const angle = Math.round(Math.atan2(ev.clientX - centerX, -(ev.clientY - centerY)) * (180 / Math.PI) * 10) / 10
+      setLocalRotate(angle)
+      onCommit(localX, localY, localW, localH, angle)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -248,7 +279,7 @@ function ModuleCard({
       style={{
         left: `calc(50% + ${localX}%)`,
         top: `calc(50% + ${localY}%)`,
-        transform: 'translate(-50%, -50%)',
+        transform: `translate(-50%, -50%) rotate(${localRotate}deg)`,
         zIndex: dragging ? 50 : (LAYER_Z[placement.depth_layer ?? 'midground'] ?? 2),
         width: localW !== undefined ? `${localW}%` : (hasFullWidth ? '100%' : undefined),
         height: localH !== undefined ? `${localH}%` : (hasFullWidth ? '100%' : undefined),
@@ -293,10 +324,11 @@ function ModuleCard({
         className={`relative border transition-all overflow-hidden w-full h-full ${
           selected
             ? 'border-white/50 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_12px_40px_rgba(0,0,0,0.7)]'
-            : 'border-white/20 hover:border-white/35'
+            : 'border-transparent hover:border-white/20'
         } ${dragging ? 'shadow-[0_16px_48px_rgba(0,0,0,0.85)]' : ''}`}
         style={{
           minWidth: !hasFullWidth && localW === undefined ? 180 : undefined,
+          minHeight: !hasFullWidth && localW === undefined ? 48 : undefined,
         }}
       >
         <ModulePreview module={mod} fillCard={fillCard} />
@@ -328,7 +360,7 @@ function ModuleCard({
         )}
       </div>
 
-      {/* Resize handles — selected only */}
+      {/* Resize + rotate handles — selected only */}
       {selected && (
         <>
           {fullCanvas ? (
@@ -340,6 +372,15 @@ function ModuleCard({
             </>
           ) : (
             <>
+              {/* Rotate handle — centered above card */}
+              <div className="absolute pointer-events-none z-30 flex flex-col items-center" style={{ left: '50%', top: -34, transform: 'translateX(-50%)' }}>
+                <div
+                  className="w-3 h-3 rounded-full border border-white/60 bg-[#080808] cursor-crosshair pointer-events-auto"
+                  title="Rotate"
+                  onMouseDown={handleRotateMouseDown}
+                />
+                <div className="w-px h-3 bg-white/20" />
+              </div>
               <div className={`${handleClass} -top-1.5 -left-1.5 cursor-nw-resize`} onMouseDown={(e) => handleResizeMouseDown('tl', e)} />
               <div className={`${handleClass} -top-1.5 -right-1.5 cursor-ne-resize`} onMouseDown={(e) => handleResizeMouseDown('tr', e)} />
               <div className={`${handleClass} -bottom-1.5 -left-1.5 cursor-sw-resize`} onMouseDown={(e) => handleResizeMouseDown('bl', e)} />
@@ -364,6 +405,18 @@ function ModulePreview({ module: mod, fillCard }: { module: PlacementWithModule[
     const vs = (mediaActor.visual_schema ?? {}) as Record<string, unknown>
     const src = vs.src as string
     if (src) {
+      const isAudio = (vs.media_type as string) === 'audio' || src.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i)
+      if (isAudio) {
+        return (
+          <div className="flex items-center gap-2 px-3 py-3">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 opacity-40">
+              <polygon points="2,1 13,7 2,13" fill="currentColor" className="text-white" />
+            </svg>
+            <div className="flex-1 h-px bg-white/20" />
+            <span className="text-[9px] tracking-[0.1em] uppercase text-white/25">audio</span>
+          </div>
+        )
+      }
       const isVideo = (vs.media_type as string) === 'video' || src.match(/\.(mp4|webm|mov)$/i)
       if (fillCard) {
         // Fill the card — mirrors runtime rendering

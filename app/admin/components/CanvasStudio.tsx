@@ -33,11 +33,12 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
     setRefreshKey(k => k + 1)
   }
 
-  async function handleMove(placementId: string, x: number, y: number, width?: number, height?: number) {
+  async function handleMove(placementId: string, x: number, y: number, width?: number, height?: number, rotate?: number) {
     const existing = (placements.find(p => p.id === placementId)?.position ?? {}) as Record<string, unknown>
     const newPos: Record<string, unknown> = { ...existing, x, y }
     if (width !== undefined) newPos.width = width
     if (height !== undefined) newPos.height = height
+    if (rotate !== undefined) newPos.rotate = rotate
     setPlacements(prev => prev.map(p => p.id === placementId ? { ...p, position: newPos } : p))
     if (editing?.id === placementId) {
       setEditing(prev => prev ? { ...prev, position: newPos } : prev)

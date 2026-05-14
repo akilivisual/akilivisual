@@ -175,6 +175,7 @@ export interface Position {
   z?: number
   width?: number
   height?: number
+  rotate?: number
   anchor?: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 }
 
