@@ -21,6 +21,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [editing, setEditing] = useState<PlacementWithModule | null>(null)
   const [mode, setMode] = useState<Mode>('edit')
+  const [viewport, setViewport] = useState<'landscape' | 'portrait'>('landscape')
 
   const totalActors = placements.reduce((n, p) => n + p.module.actors.length, 0)
 
@@ -112,7 +113,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
       {/* ── Right panel — editor / preview ─────────────────── */}
       <div className="flex-1 bg-[#030303] overflow-hidden flex flex-col min-h-0">
 
-        {/* Top bar — in flow so it doesn't overlap the stage */}
+        {/* Top bar */}
         <div className="h-10 shrink-0 flex items-center justify-between px-5 z-10 border-b border-white/[0.04]">
           <div className="flex items-center gap-2">
             <div className={`w-1.5 h-1.5 rounded-full ${mode === 'preview' ? 'bg-white/40 animate-pulse' : 'bg-white/20'}`} />
@@ -120,13 +121,31 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
               {mode === 'edit' ? 'State Editor' : 'Live Preview'}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-3">
+            {/* Viewport toggle */}
+            <div className="flex items-center gap-1.5 border-r border-white/[0.08] pr-3">
+              <button
+                onClick={() => setViewport('landscape')}
+                title="Landscape (16:9)"
+                className={`flex items-center justify-center w-6 h-6 transition-colors ${viewport === 'landscape' ? 'text-white/70' : 'text-white/20 hover:text-white/45'}`}
+              >
+                <span className={`block w-4 h-2.5 border ${viewport === 'landscape' ? 'border-white/60' : 'border-current'}`} />
+              </button>
+              <button
+                onClick={() => setViewport('portrait')}
+                title="Portrait (9:16)"
+                className={`flex items-center justify-center w-6 h-6 transition-colors ${viewport === 'portrait' ? 'text-white/70' : 'text-white/20 hover:text-white/45'}`}
+              >
+                <span className={`block w-2.5 h-4 border ${viewport === 'portrait' ? 'border-white/60' : 'border-current'}`} />
+              </button>
+            </div>
+
+            {/* Edit / Preview */}
             <button
               onClick={() => setMode('edit')}
               className={`px-3 py-1 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
-                mode === 'edit'
-                  ? 'border-white/30 text-white/70'
-                  : 'border-white/10 text-white/25 hover:text-white/50 hover:border-white/20'
+                mode === 'edit' ? 'border-white/30 text-white/70' : 'border-white/10 text-white/25 hover:text-white/50 hover:border-white/20'
               }`}
             >
               Edit
@@ -134,9 +153,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
             <button
               onClick={() => { setMode('preview'); setRefreshKey(k => k + 1) }}
               className={`px-3 py-1 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
-                mode === 'preview'
-                  ? 'border-white/30 text-white/70'
-                  : 'border-white/10 text-white/25 hover:text-white/50 hover:border-white/20'
+                mode === 'preview' ? 'border-white/30 text-white/70' : 'border-white/10 text-white/25 hover:text-white/50 hover:border-white/20'
               }`}
             >
               Preview
@@ -144,11 +161,14 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
           </div>
         </div>
 
-        {/* 16:9 stage — centered in the available space */}
-        <div className="flex-1 min-h-0 flex items-center justify-center p-4 overflow-hidden">
+        {/* Stage — constrained to selected viewport aspect ratio, centered */}
+        <div className="flex-1 min-h-0 flex items-center justify-center p-4 bg-[#030303] overflow-hidden">
           <div
             className="relative bg-[#050505] overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.07)]"
-            style={{ aspectRatio: '16/9', maxWidth: '100%', maxHeight: '100%', width: '100%' }}
+            style={viewport === 'landscape'
+              ? { aspectRatio: '16/9', width: '100%', maxHeight: '100%' }
+              : { aspectRatio: '9/16', height: '100%', maxWidth: '100%' }
+            }
           >
             {mode === 'edit' && (
               <CanvasEditor
