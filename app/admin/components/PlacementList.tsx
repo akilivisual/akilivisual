@@ -1,32 +1,28 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Reorder, useDragControls, AnimatePresence } from 'framer-motion'
+import { Reorder, useDragControls } from 'framer-motion'
 import type { PlacementWithModule, Actor } from '@/lib/schema/types'
 import { reorderPlacements } from '@/app/admin/actions/canvas'
 import { addModuleToCanvas, deletePlacement, updateModule } from '@/app/admin/actions/modules'
-import { ModuleEditPanel } from './ModuleEditPanel'
 
 const MODULE_TYPES = ['atmosphere', 'focus', 'orbital_interaction', 'embed', 'text_block', 'media', 'custom']
 
 interface PlacementListProps {
   placements: PlacementWithModule[]
   canvasId: string
+  selectedId: string | null
+  onEdit: (placement: PlacementWithModule) => void
   onSaved?: () => void
 }
 
-export function PlacementList({ placements: initial, canvasId, onSaved }: PlacementListProps) {
+export function PlacementList({ placements: initial, canvasId, selectedId, onEdit, onSaved }: PlacementListProps) {
   const [placements, setPlacements] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState<PlacementWithModule | null>(null)
 
   useEffect(() => {
     setPlacements(initial)
-    setEditing(prev => {
-      if (!prev) return prev
-      return initial.find(p => p.id === prev.id) ?? prev
-    })
   }, [initial])
 
   async function handleAdd(type: string) {
@@ -34,7 +30,6 @@ export function PlacementList({ placements: initial, canvasId, onSaved }: Placem
     const result = await addModuleToCanvas(canvasId, type, placements.length)
     setAdding(false)
     if (result.ok && result.moduleId && result.placementId) {
-      onSaved?.()
       const placeholder: PlacementWithModule = {
         id: result.placementId,
         canvas_id: canvasId,
@@ -60,6 +55,7 @@ export function PlacementList({ placements: initial, canvasId, onSaved }: Placem
         },
       }
       setPlacements(prev => [...prev, placeholder])
+      onSaved?.()
     }
   }
 
@@ -96,92 +92,81 @@ export function PlacementList({ placements: initial, canvasId, onSaved }: Placem
   function handleSaved(updated?: PlacementWithModule) {
     if (updated) {
       setPlacements(prev => prev.map(p => p.id === updated.id ? updated : p))
-      setEditing(updated)
     }
     onSaved?.()
   }
 
   return (
-    <>
-      <div>
-        <div className="flex items-center justify-between mb-2 px-8">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-white/30">
-            Modules ({placements.length})
-          </p>
-          {saving && (
-            <span className="text-[10px] tracking-[0.15em] uppercase text-white/25 animate-pulse">
-              Saving order...
-            </span>
-          )}
-        </div>
-
-        {placements.length === 0 ? (
-          <div className="mx-8 border border-white/10 border-dashed flex items-center justify-center py-12">
-            <p className="text-[11px] tracking-[0.25em] uppercase text-white/15">No modules</p>
-          </div>
-        ) : (
-          <Reorder.Group
-            axis="y"
-            values={placements}
-            onReorder={handleReorder}
-            className="flex flex-col gap-2 px-8"
-          >
-            {placements.map((placement, i) => (
-              <DraggablePlacement
-                key={placement.id}
-                placement={placement}
-                index={i}
-                onEdit={() => setEditing(placement)}
-                onDelete={() => handleDelete(placement.id)}
-                onToggleHidden={() => handleToggleHidden(placement.id)}
-              />
-            ))}
-          </Reorder.Group>
+    <div>
+      <div className="flex items-center justify-between mb-2 px-8">
+        <p className="text-[10px] tracking-[0.3em] uppercase text-white/30">
+          Modules ({placements.length})
+        </p>
+        {saving && (
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/25 animate-pulse">
+            Saving order...
+          </span>
         )}
-
-        {/* Add Module */}
-        <div className="border border-white/[0.08] border-dashed mt-3 mx-8">
-          <p className="text-[10px] tracking-[0.2em] uppercase text-white/20 px-5 pt-4 pb-2">
-            Add Module
-          </p>
-          <div className="flex flex-wrap gap-2 px-5 pb-4">
-            {MODULE_TYPES.map((type) => (
-              <button
-                key={type}
-                onClick={() => handleAdd(type)}
-                disabled={adding}
-                className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors disabled:opacity-30"
-              >
-                + {type}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Edit panel */}
-      <AnimatePresence>
-        {editing && (
-          <ModuleEditPanel
-            placement={editing}
-            onClose={() => setEditing(null)}
-            onSaved={handleSaved}
-          />
-        )}
-      </AnimatePresence>
-    </>
+      {placements.length === 0 ? (
+        <div className="mx-8 border border-white/10 border-dashed flex items-center justify-center py-12">
+          <p className="text-[11px] tracking-[0.25em] uppercase text-white/15">No modules</p>
+        </div>
+      ) : (
+        <Reorder.Group
+          axis="y"
+          values={placements}
+          onReorder={handleReorder}
+          className="flex flex-col gap-2 px-8"
+        >
+          {placements.map((placement, i) => (
+            <DraggablePlacement
+              key={placement.id}
+              placement={placement}
+              index={i}
+              selected={selectedId === placement.id}
+              onEdit={() => onEdit(placement)}
+              onDelete={() => handleDelete(placement.id)}
+              onToggleHidden={() => handleToggleHidden(placement.id)}
+            />
+          ))}
+        </Reorder.Group>
+      )}
+
+      {/* Add Module */}
+      <div className="border border-white/[0.08] border-dashed mt-3 mx-8">
+        <p className="text-[10px] tracking-[0.2em] uppercase text-white/20 px-5 pt-4 pb-2">
+          Add Module
+        </p>
+        <div className="flex flex-wrap gap-2 px-5 pb-4">
+          {MODULE_TYPES.map((type) => (
+            <button
+              key={type}
+              onClick={() => handleAdd(type)}
+              disabled={adding}
+              className="px-3 py-1.5 border border-white/15 text-[10px] tracking-[0.15em] uppercase text-white/40 hover:text-white hover:border-white/40 transition-colors disabled:opacity-30"
+            >
+              + {type}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
 function DraggablePlacement({
   placement,
   index,
+  selected,
   onEdit,
   onDelete,
   onToggleHidden,
 }: {
   placement: PlacementWithModule
   index: number
+  selected: boolean
   onEdit: () => void
   onDelete: () => void
   onToggleHidden: () => void
@@ -196,7 +181,7 @@ function DraggablePlacement({
       value={placement}
       dragListener={false}
       dragControls={controls}
-      className={`border border-white/10 cursor-default select-none transition-opacity ${hidden ? 'opacity-40 bg-transparent' : 'bg-white/[0.02]'}`}
+      className={`border cursor-default select-none transition-all ${hidden ? 'opacity-40 bg-transparent' : 'bg-white/[0.02]'} ${selected ? 'border-white/30' : 'border-white/10'}`}
       whileDrag={{
         scale: 1.01,
         borderColor: 'rgba(255,255,255,0.25)',

@@ -2,17 +2,50 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import type { CanvasWithPlacements } from '@/lib/schema/types'
+import { AnimatePresence } from 'framer-motion'
+import type { CanvasWithPlacements, PlacementWithModule } from '@/lib/schema/types'
+import { updatePlacement } from '@/app/admin/actions/modules'
 import { PlacementList } from './PlacementList'
+import { CanvasEditor } from './CanvasEditor'
+import { ModuleEditPanel } from './ModuleEditPanel'
 import { DeleteCanvasButton } from './DeleteCanvasButton'
 
 interface CanvasStudioProps {
   canvas: CanvasWithPlacements
 }
 
+type Mode = 'edit' | 'preview'
+
 export function CanvasStudio({ canvas }: CanvasStudioProps) {
+  const [placements, setPlacements] = useState(canvas.placements)
   const [refreshKey, setRefreshKey] = useState(0)
-  const totalActors = canvas.placements.reduce((n, p) => n + p.module.actors.length, 0)
+  const [editing, setEditing] = useState<PlacementWithModule | null>(null)
+  const [mode, setMode] = useState<Mode>('edit')
+
+  const totalActors = placements.reduce((n, p) => n + p.module.actors.length, 0)
+
+  function handleSaved(updated?: PlacementWithModule) {
+    if (updated) {
+      setPlacements(prev => prev.map(p => p.id === updated.id ? updated : p))
+      setEditing(updated)
+    }
+    setRefreshKey(k => k + 1)
+  }
+
+  async function handleMove(placementId: string, x: number, y: number) {
+    setPlacements(prev =>
+      prev.map(p =>
+        p.id === placementId
+          ? { ...p, position: { ...(p.position as Record<string, number>), x, y } }
+          : p
+      )
+    )
+    await updatePlacement(placementId, { position: { x, y } })
+  }
+
+  function handleSelect(placement: PlacementWithModule | null) {
+    setEditing(placement)
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -44,7 +77,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
         <div className="grid grid-cols-3 gap-2 px-8 py-5 border-b border-white/[0.06] shrink-0">
           {[
             { label: 'Type', value: canvas.canvas_type },
-            { label: 'Modules', value: canvas.placements.length },
+            { label: 'Modules', value: placements.length },
             { label: 'Actors', value: totalActors },
           ].map((s) => (
             <div key={s.label} className="border border-white/10 bg-white/[0.02] px-3 py-3">
@@ -57,40 +90,84 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
         {/* Placement list */}
         <div className="py-5 flex-1">
           <PlacementList
-            placements={canvas.placements}
+            placements={placements}
             canvasId={canvas.id}
-            onSaved={() => setRefreshKey((k) => k + 1)}
+            selectedId={editing?.id ?? null}
+            onEdit={setEditing}
+            onSaved={() => setRefreshKey(k => k + 1)}
           />
         </div>
 
       </div>
 
-      {/* ── Right panel — live preview ──────────────────────── */}
-      <div className="flex-1 relative bg-[#050505] overflow-hidden">
+      {/* ── Right panel — editor / preview ─────────────────── */}
+      <div className="flex-1 relative bg-[#050505] overflow-hidden flex flex-col">
 
-        {/* Status bar */}
+        {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-5 z-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
           <div className="flex items-center gap-2 pointer-events-none">
-            <div className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
-            <span className="text-[10px] tracking-[0.2em] uppercase text-white/30">Live Preview</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${mode === 'preview' ? 'bg-white/40 animate-pulse' : 'bg-white/20'}`} />
+            <span className="text-[10px] tracking-[0.2em] uppercase text-white/30">
+              {mode === 'edit' ? 'Canvas Editor' : 'Live Preview'}
+            </span>
           </div>
-          <button
-            onClick={() => setRefreshKey((k) => k + 1)}
-            className="pointer-events-auto px-3 py-1 border border-white/10 text-[10px] tracking-[0.15em] uppercase text-white/25 hover:text-white/60 hover:border-white/25 transition-colors"
-          >
-            ↺ Refresh
-          </button>
+          <div className="flex items-center gap-2 pointer-events-auto">
+            <button
+              onClick={() => setMode('edit')}
+              className={`px-3 py-1 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
+                mode === 'edit'
+                  ? 'border-white/30 text-white/70'
+                  : 'border-white/10 text-white/25 hover:text-white/50 hover:border-white/20'
+              }`}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => { setMode('preview'); setRefreshKey(k => k + 1) }}
+              className={`px-3 py-1 border text-[10px] tracking-[0.15em] uppercase transition-colors ${
+                mode === 'preview'
+                  ? 'border-white/30 text-white/70'
+                  : 'border-white/10 text-white/25 hover:text-white/50 hover:border-white/20'
+              }`}
+            >
+              Preview
+            </button>
+          </div>
         </div>
 
-        {/* Canvas iframe */}
-        <iframe
-          key={refreshKey}
-          src={`/preview/${canvas.slug}`}
-          className="w-full h-full border-none"
-          title={canvas.title}
-          allow="autoplay"
-        />
+        {/* Canvas Editor */}
+        {mode === 'edit' && (
+          <CanvasEditor
+            placements={placements}
+            selectedId={editing?.id ?? null}
+            onSelect={handleSelect}
+            onCommit={handleMove}
+          />
+        )}
+
+        {/* Live Preview iframe */}
+        {mode === 'preview' && (
+          <iframe
+            key={refreshKey}
+            src={`/preview/${canvas.slug}`}
+            className="w-full h-full border-none"
+            title={canvas.title}
+            allow="autoplay"
+          />
+        )}
+
       </div>
+
+      {/* Module edit panel — shared between list and canvas editor */}
+      <AnimatePresence>
+        {editing && (
+          <ModuleEditPanel
+            placement={editing}
+            onClose={() => setEditing(null)}
+            onSaved={handleSaved}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   )
