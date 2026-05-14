@@ -61,6 +61,7 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
                 transform: 'translate(-50%, -50%)',
                 zIndex: depthZ + mz,
                 pointerEvents: 'none',
+                overflow: hasExplicitSize ? 'hidden' : undefined,
               }}
             >
               <ModuleWrapper placement={placement}>

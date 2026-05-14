@@ -96,7 +96,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   const fullWidth = !!(actor.visual_schema as Record<string, unknown>)?.full_width
   const outerStyle = {
     alignSelf, marginTop: mt, marginRight: mr, marginBottom: mb, marginLeft: ml,
-    ...(fullWidth ? { position: 'relative' as const, width: '100%', height: '100%', flex: '1 1 auto' } : {}),
+    ...(fullWidth ? { position: 'relative' as const, width: '100%', height: '100%', flex: '1 1 auto', minWidth: 0, minHeight: 0 } : {}),
   }
 
   // Entrance motion — always present
