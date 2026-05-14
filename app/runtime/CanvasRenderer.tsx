@@ -35,6 +35,20 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           const mw = pos.width as number | undefined
           const mh = pos.height as number | undefined
           const depthZ = { background: 0, midground: 5, foreground: 10 }[placement.depth_layer ?? 'midground'] ?? 5
+
+          // When the placement has explicit dimensions, media fills the container
+          const hasExplicitSize = mw !== undefined && mh !== undefined
+          const displayModule = hasExplicitSize
+            ? {
+                ...placement.module,
+                actors: placement.module.actors.map(a =>
+                  (a.actor_type === 'image' || a.actor_type === 'media')
+                    ? { ...a, visual_schema: { ...(a.visual_schema as Record<string, unknown>), full_width: true } }
+                    : a
+                ),
+              }
+            : placement.module
+
           return (
             <div
               key={placement.id}
@@ -50,7 +64,7 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
               }}
             >
               <ModuleWrapper placement={placement}>
-                <ModuleRenderer module={placement.module} />
+                <ModuleRenderer module={displayModule} />
               </ModuleWrapper>
             </div>
           )
