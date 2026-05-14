@@ -461,14 +461,18 @@ function ModulePreview({ module: mod, fillCard }: { module: PlacementWithModule[
   }
 
   if (mod.module_type === 'text_block') {
-    const text = (props.text as string ?? '').replace(/<[^>]+>/g, '').slice(0, 80)
+    const raw = (props.text as string) ?? ''
     const color = (props.color as string) ?? '#ffffff'
-    if (text) {
+    const fontSize = Math.min((props.font_size as number) ?? 14, 28)
+    const fontWeight = (props.font_weight as string) ?? '300'
+    const hasHtml = /<[a-z][\s\S]*>/i.test(raw)
+    if (raw) {
       return (
-        <div className="px-3 pt-3 pb-1 min-h-[2.5rem]">
-          <p className="text-[12px] leading-snug line-clamp-2" style={{ color }}>
-            {text}
-          </p>
+        <div className="px-3 pt-3 pb-1 min-h-[2.5rem] overflow-hidden">
+          {hasHtml
+            ? <span className="text-[12px] leading-snug line-clamp-3" style={{ color, fontSize, fontWeight }} dangerouslySetInnerHTML={{ __html: raw }} />
+            : <p className="text-[12px] leading-snug line-clamp-3" style={{ color, fontSize, fontWeight }}>{raw}</p>
+          }
         </div>
       )
     }
@@ -492,10 +496,26 @@ function ModulePreview({ module: mod, fillCard }: { module: PlacementWithModule[
     const vs = (textActor.visual_schema ?? {}) as Record<string, unknown>
     const text = (vs.text as string) ?? ''
     const color = (vs.color as string) ?? '#ffffff'
+    const fontFamily = vs.font_family as string | undefined
+    const fontSize = fillCard
+      ? ((vs.font_size as number) ?? 14)
+      : Math.min((vs.font_size as number) ?? 14, 28)
+    const fontWeight = (vs.font_weight as string) ?? '300'
+    const hasHtml = /<[a-z][\s\S]*>/i.test(text)
     if (text) {
+      const style: React.CSSProperties = {
+        color,
+        fontSize,
+        fontWeight,
+        fontFamily: fontFamily && fontFamily !== 'inherit' ? `'${fontFamily}', sans-serif` : undefined,
+        lineHeight: 1.3,
+      }
       return (
-        <div className="px-3 pt-3 pb-1">
-          <p className="text-[13px] truncate" style={{ color }}>{text}</p>
+        <div className={`px-3 pt-3 pb-1 overflow-hidden ${fillCard ? 'absolute inset-0 flex items-center justify-center' : ''}`}>
+          {hasHtml
+            ? <span style={style} dangerouslySetInnerHTML={{ __html: text }} />
+            : <span style={style}>{text}</span>
+          }
         </div>
       )
     }
