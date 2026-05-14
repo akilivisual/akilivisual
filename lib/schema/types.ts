@@ -173,6 +173,8 @@ export interface Position {
   x?: number
   y?: number
   z?: number
+  width?: number
+  height?: number
   anchor?: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 }
 
