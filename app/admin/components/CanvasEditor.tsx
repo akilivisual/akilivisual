@@ -247,6 +247,8 @@ function ModuleCard({
         zIndex: dragging ? 50 : (LAYER_Z[placement.depth_layer ?? 'midground'] ?? 2),
         width: localW !== undefined ? `${localW}%` : undefined,
         height: localH !== undefined ? `${localH}%` : undefined,
+        minWidth: hasFullWidth && localW === undefined ? 220 : undefined,
+        minHeight: hasFullWidth && localH === undefined ? 160 : undefined,
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}
@@ -259,49 +261,58 @@ function ModuleCard({
             : 'border-white/20 hover:border-white/35'
         } ${dragging ? 'shadow-[0_16px_48px_rgba(0,0,0,0.85)]' : ''}`}
         style={{
-          minWidth: localW !== undefined ? undefined : 180,
-          minHeight: hasFullWidth && localH === undefined ? 180 : undefined,
+          minWidth: !hasFullWidth && localW === undefined ? 180 : undefined,
         }}
       >
         <ModulePreview module={mod} hasFullWidth={hasFullWidth} />
-        <div className={`px-3 py-2.5 bg-black/70 ${hasFullWidth ? 'absolute bottom-0 left-0 right-0 z-10' : ''}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
-            <span className="text-[11px] tracking-wide text-white/80 truncate">
-              {mod.name ?? mod.module_type}
-            </span>
+        {!hasFullWidth && (
+          <div className="px-3 py-2.5 bg-black/60">
+            <div className="flex items-center gap-2 mb-1">
+              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
+              <span className="text-[11px] tracking-wide text-white/80 truncate">
+                {mod.name ?? mod.module_type}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] tracking-[0.1em] uppercase text-white/25 border border-white/[0.08] px-1.5 py-0.5">
+                {mod.module_type}
+              </span>
+              <span className="text-[9px] text-white/15 font-mono tabular-nums">
+                {localX.toFixed(1)}, {localY.toFixed(1)}
+                {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] tracking-[0.1em] uppercase text-white/25 border border-white/[0.08] px-1.5 py-0.5">
-              {mod.module_type}
-            </span>
-            <span className="text-[9px] text-white/15 font-mono tabular-nums">
-              {localX.toFixed(1)}, {localY.toFixed(1)}
-              {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Selection: resize handles + delete button */}
       {selected && (
         <>
-          {/* Delete */}
-          <button
-            className={`absolute -top-7 right-0 text-[9px] tracking-[0.1em] uppercase px-2 py-1 border transition-colors pointer-events-auto ${
-              confirmDelete
-                ? 'border-red-500/60 text-red-400'
-                : 'border-white/20 text-white/30 hover:text-red-400/70 hover:border-red-500/30'
-            }`}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              if (confirmDelete) { onDelete() }
-              else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
-            }}
-          >
-            {confirmDelete ? 'Sure?' : 'Remove'}
-          </button>
+          {/* Top bar: name (full-width only) + remove button */}
+          <div className="absolute -top-7 left-0 right-0 flex items-center justify-between gap-2 pointer-events-auto">
+            {hasFullWidth && (
+              <span className="text-[9px] text-white/35 font-mono truncate">
+                {mod.name ?? mod.module_type} · {localX.toFixed(1)}, {localY.toFixed(1)}
+                {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
+              </span>
+            )}
+            <button
+              className={`ml-auto text-[9px] tracking-[0.1em] uppercase px-2 py-1 border transition-colors ${
+                confirmDelete
+                  ? 'border-red-500/60 text-red-400'
+                  : 'border-white/20 text-white/30 hover:text-red-400/70 hover:border-red-500/30'
+              }`}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (confirmDelete) { onDelete() }
+                else { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000) }
+              }}
+            >
+              {confirmDelete ? 'Sure?' : 'Remove'}
+            </button>
+          </div>
 
           {/* Corner resize handles */}
           <div className="absolute -top-1.5 -left-1.5 w-3 h-3 border border-white/60 bg-[#080808] cursor-nw-resize pointer-events-auto" onMouseDown={(e) => handleResizeMouseDown('tl', e)} />
