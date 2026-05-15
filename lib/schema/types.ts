@@ -223,6 +223,20 @@ export interface VisualSchema {
   mask_spread?: number
 }
 
+export interface KeyframePoint {
+  t: number  // 0.0–1.0 normalized position within duration
+  v: number  // value at this keyframe
+}
+
+export interface KeyframeMap {
+  opacity?: KeyframePoint[]
+  scale?: KeyframePoint[]
+  x?: KeyframePoint[]
+  y?: KeyframePoint[]
+  rotate?: KeyframePoint[]
+  zIndex?: KeyframePoint[]
+}
+
 export interface MotionProfileData {
   pulse_speed?: number
   easing_type?: string
@@ -233,6 +247,8 @@ export interface MotionProfileData {
   duration?: number
   delay?: number
   loop?: boolean
+  preset?: string
+  keyframes?: KeyframeMap
 }
 
 export interface ResonanceProfileData {

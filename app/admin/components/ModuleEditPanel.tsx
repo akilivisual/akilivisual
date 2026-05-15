@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion'
-import type { PlacementWithModule, ModuleWithActors, Actor, VisualSchema, MediaAsset } from '@/lib/schema/types'
+import type { PlacementWithModule, ModuleWithActors, Actor, VisualSchema, MediaAsset, KeyframeMap } from '@/lib/schema/types'
+import { KeyframeTimeline } from './KeyframeTimeline'
 import { updateModule, updatePlacement, updateActor, addActor, deleteActor, reorderActors } from '@/app/admin/actions/modules'
 import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
 import { getSupabase } from '@/lib/supabase/client'
@@ -524,42 +525,26 @@ function MotionTab({ module, onChange }: { module: ModuleWithActors; onChange: (
         <Field label="Pulse Speed">
           <SliderInput value={(mp.pulse_speed as number) ?? 1} min={0} max={4} step={0.1} onChange={(v) => set('pulse_speed', v)} />
         </Field>
-        <Field label="Duration (s)">
-          <NumberInput value={(mp.duration as number) ?? 2} min={0.1} max={20} step={0.1} onChange={(v) => set('duration', v)} />
+        <Field label="Easing">
+          <Select value={(mp.easing_type as string) ?? 'easeInOut'} options={EASING_TYPES} onChange={(v) => set('easing_type', v)} />
         </Field>
       </div>
 
-      <Field label="Easing">
-        <Select value={(mp.easing_type as string) ?? 'easeInOut'} options={EASING_TYPES} onChange={(v) => set('easing_type', v)} />
-      </Field>
-
-      <Divider label="Opacity" />
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Min">
-          <SliderInput value={(mp.opacity_min as number) ?? 0.4} min={0} max={1} step={0.01} onChange={(v) => set('opacity_min', v)} />
-        </Field>
-        <Field label="Max">
-          <SliderInput value={(mp.opacity_max as number) ?? 1} min={0} max={1} step={0.01} onChange={(v) => set('opacity_max', v)} />
-        </Field>
-      </div>
-
-      <Divider label="Scale" />
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Min">
-          <SliderInput value={(mp.scale_min as number) ?? 0.95} min={0.5} max={2} step={0.01} onChange={(v) => set('scale_min', v)} />
-        </Field>
-        <Field label="Max">
-          <SliderInput value={(mp.scale_max as number) ?? 1.05} min={0.5} max={2} step={0.01} onChange={(v) => set('scale_max', v)} />
-        </Field>
-      </div>
-
-      <Field label="Delay (s)">
-        <NumberInput value={(mp.delay as number) ?? 0} min={0} max={10} step={0.1} onChange={(v) => set('delay', v)} />
-      </Field>
-
-      <Field label="Loop">
-        <Toggle value={(mp.loop as boolean) ?? false} onChange={(v) => set('loop', v)} />
-      </Field>
+      <Divider label="Ambient Loop" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Continuous oscillation after entrance. Loop must be on.</p>
+      <KeyframeTimeline
+        tracks={(mp.keyframes ?? {}) as KeyframeMap}
+        duration={(mp.duration as number) ?? 3}
+        delay={(mp.delay as number) ?? 0}
+        loop={!!(mp.loop)}
+        preset="none"
+        properties={['opacity', 'scale']}
+        onChangeTracks={(kf) => set('keyframes', kf)}
+        onChangeDuration={(d) => set('duration', d)}
+        onChangeDelay={(d) => set('delay', d)}
+        onChangeLoop={(l) => set('loop', l)}
+        onChangePreset={() => {}}
+      />
     </div>
   )
 }
@@ -1686,21 +1671,18 @@ function ActorEditor({
               )}
 
               <Divider label="Motion" />
-              <Field label="Preset">
-                <Select
-                  value={(ms.preset as string) ?? 'phase_in'}
-                  options={['phase_in', 'fade_in', 'slide_up', 'slide_down', 'slide_left', 'slide_right', 'scale_in', 'pulse', 'none']}
-                  onChange={(v) => setMS('preset', v)}
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Duration (s)">
-                  <NumberInput value={(ms.duration as number) ?? 1.2} min={0.1} max={20} step={0.1} onChange={(v) => setMS('duration', v)} />
-                </Field>
-                <Field label="Delay (s)">
-                  <NumberInput value={(ms.delay as number) ?? 0} min={0} max={10} step={0.1} onChange={(v) => setMS('delay', v)} />
-                </Field>
-              </div>
+              <KeyframeTimeline
+                tracks={(ms.keyframes ?? {}) as KeyframeMap}
+                duration={(ms.duration as number) ?? 1.2}
+                delay={(ms.delay as number) ?? 0}
+                loop={!!(ms.loop)}
+                preset={(ms.preset as string) ?? 'phase_in'}
+                onChangeTracks={(kf) => setMS('keyframes', kf)}
+                onChangeDuration={(d) => setMS('duration', d)}
+                onChangeDelay={(d) => setMS('delay', d)}
+                onChangeLoop={(l) => setMS('loop', l)}
+                onChangePreset={(p) => setMS('preset', p)}
+              />
 
               {(actor.actor_type === 'logo' || actor.actor_type === 'text') && (
                 <>

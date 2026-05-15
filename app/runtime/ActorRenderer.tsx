@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react'
 import { motion, useAnimation, useInView } from 'framer-motion'
-import type { Actor } from '@/lib/schema/types'
+import type { Actor, KeyframePoint } from '@/lib/schema/types'
 import { useMagnetic } from './hooks/useMagnetic'
 
 interface ActorRendererProps {
@@ -37,7 +37,41 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
 
   const rest = { opacity: opacityVal, scale: scaleVal, rotate: rotateVal, x: ox, y: oy }
 
-  switch (preset) {
+  // ── Keyframe mode — when motion_schema.keyframes has ≥2 points on any track ──
+  const kf = (ms.keyframes ?? {}) as Record<string, KeyframePoint[]>
+  const hasKF = Object.values(kf).some(track => Array.isArray(track) && track.length >= 2)
+
+  if (hasKF) {
+    const vals = (track?: KeyframePoint[]) => track?.map(k => k.v)
+    const times = (track?: KeyframePoint[]) => track?.map(k => k.t)
+    const looping = !!(ms.loop)
+
+    initial = {
+      opacity: kf.opacity?.[0]?.v ?? opacityVal,
+      scale:   kf.scale?.[0]?.v   ?? scaleVal,
+      x:       kf.x?.[0]?.v       ?? ox,
+      y:       kf.y?.[0]?.v       ?? oy,
+      rotate:  kf.rotate?.[0]?.v  ?? rotateVal,
+    }
+    animateTo = {
+      ...(kf.opacity ? { opacity: vals(kf.opacity) } : {}),
+      ...(kf.scale   ? { scale:   vals(kf.scale)   } : {}),
+      ...(kf.x       ? { x:       vals(kf.x)       } : {}),
+      ...(kf.y       ? { y:       vals(kf.y)       } : {}),
+      ...(kf.rotate  ? { rotate:  vals(kf.rotate)  } : {}),
+      ...(kf.zIndex  ? { zIndex:  vals(kf.zIndex)  } : {}),
+    }
+    transition = {
+      duration, delay, ease: 'easeOut' as const,
+      ...(looping ? { repeat: Infinity, repeatType: 'loop' as const } : {}),
+      ...(kf.opacity ? { opacity: { times: times(kf.opacity) } } : {}),
+      ...(kf.scale   ? { scale:   { times: times(kf.scale)   } } : {}),
+      ...(kf.x       ? { x:       { times: times(kf.x)       } } : {}),
+      ...(kf.y       ? { y:       { times: times(kf.y)       } } : {}),
+      ...(kf.rotate  ? { rotate:  { times: times(kf.rotate)  } } : {}),
+      ...(kf.zIndex  ? { zIndex:  { times: times(kf.zIndex)  } } : {}),
+    }
+  } else switch (preset) {
     case 'fade_in':
       initial = { ...rest, opacity: 0 }
       animateTo = rest
@@ -89,7 +123,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
     if (hidden) return
     if (inView) {
       controls.start({ ...animateTo, transition })
-    } else if (preset !== 'none') {
+    } else if (hasKF || preset !== 'none') {
       controls.set(initial)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,7 +165,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   ) : entrance
 
   // Module ambient loop — runs after entrance settles, skipped if actor already pulses
-  const hasAmbient = !!(moduleMotion?.loop) && preset !== 'pulse'
+  const hasAmbient = !!(moduleMotion?.loop) && !hasKF && preset !== 'pulse'
   const ambientEasing = (moduleMotion?.easing_type as string) ?? 'easeInOut'
   const speed = (moduleMotion?.pulse_speed as number) ?? 1
 
@@ -140,18 +174,36 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   }
 
   const ambientDelay = duration + delay + ((moduleMotion?.delay as number) ?? 0)
-  const opMin = (moduleMotion?.opacity_min as number) ?? 0.7
-  const opMax = (moduleMotion?.opacity_max as number) ?? 1
-  const scMin = (moduleMotion?.scale_min as number) ?? 1
-  const scMax = (moduleMotion?.scale_max as number) ?? 1
   const ambientDur = ((moduleMotion?.duration as number) ?? 3) / Math.max(speed, 0.1)
+
+  // Module keyframes take precedence over min/max sliders when present
+  const mkf = (moduleMotion?.keyframes ?? {}) as Record<string, KeyframePoint[]>
+  const hasMKF = Object.values(mkf).some(t => Array.isArray(t) && t.length >= 2)
+
+  const ambientAnimate = hasMKF
+    ? {
+        ...(mkf.opacity ? { opacity: mkf.opacity.map(k => k.v) } : {}),
+        ...(mkf.scale   ? { scale:   mkf.scale.map(k => k.v)   } : {}),
+      }
+    : {
+        opacity: [(moduleMotion?.opacity_min as number) ?? 0.7, (moduleMotion?.opacity_max as number) ?? 1, (moduleMotion?.opacity_min as number) ?? 0.7],
+        scale:   [(moduleMotion?.scale_min   as number) ?? 1,   (moduleMotion?.scale_max   as number) ?? 1, (moduleMotion?.scale_min   as number) ?? 1],
+      }
+
+  const ambientTransition = hasMKF
+    ? {
+        duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' as const,
+        ...(mkf.opacity ? { opacity: { times: mkf.opacity.map(k => k.t) } } : {}),
+        ...(mkf.scale   ? { scale:   { times: mkf.scale.map(k => k.t)   } } : {}),
+      }
+    : { duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' as const }
 
   return (
     <motion.div
       ref={containerRef}
       style={outerStyle}
-      animate={{ opacity: [opMin, opMax, opMin], scale: [scMin, scMax, scMin] }}
-      transition={{ duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' }}
+      animate={ambientAnimate}
+      transition={ambientTransition}
     >
       {withMagnetic}
     </motion.div>
