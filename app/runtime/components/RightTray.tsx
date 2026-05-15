@@ -75,10 +75,10 @@ export function RightTray({ activeCanvas, trayPlacements }: RightTrayProps) {
               {trayPlacements.map((placement) => (
                 <div
                   key={placement.id}
-                  className="relative border-b border-white/[0.04] overflow-hidden"
-                  style={{ minHeight: 180, position: 'relative' }}
+                  className="border-b border-white/[0.04]"
+                  style={{ position: 'relative', minHeight: 60 }}
                 >
-                  <ModuleRenderer module={placement.module} />
+                  <ModuleRenderer module={placement.module} context="tray" />
                 </div>
               ))}
             </div>

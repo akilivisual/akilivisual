@@ -11,9 +11,10 @@ import { FlexActor } from './ActorRenderer'
 
 interface ModuleRendererProps {
   module: ModuleWithActors
+  context?: 'canvas' | 'tray'
 }
 
-export function ModuleRenderer({ module }: ModuleRendererProps) {
+export function ModuleRenderer({ module, context = 'canvas' }: ModuleRendererProps) {
   if ((module.props as Record<string, unknown>)?.hidden) return null
 
   switch (module.module_type) {
@@ -28,7 +29,7 @@ export function ModuleRenderer({ module }: ModuleRendererProps) {
     case 'gallery':
       return <GalleryModule module={module} />
     case 'form':
-      return <FormModule module={module} />
+      return <FormModule module={module} context={context} />
     case 'text_block': {
       const props = (module.props as Record<string, unknown>)
       const layout = (props.layout ?? {}) as Record<string, unknown>

@@ -14,17 +14,19 @@ interface FormField {
 
 const inputStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.15)',
+  border: '1px solid rgba(255,255,255,0.12)',
   color: '#ffffff',
-  fontSize: 13,
+  fontSize: 12,
   padding: '10px 12px',
   outline: 'none',
   width: '100%',
   fontFamily: 'inherit',
   borderRadius: 0,
+  appearance: 'none',
+  WebkitAppearance: 'none',
 }
 
-export function FormModule({ module }: { module: ModuleWithActors }) {
+export function FormModule({ module, context = 'canvas' }: { module: ModuleWithActors; context?: 'canvas' | 'tray' }) {
   const props = module.props as Record<string, unknown>
   const fields = (props.fields as FormField[]) ?? []
   const submitLabel = (props.submit_label as string) ?? 'Send'
@@ -54,9 +56,14 @@ export function FormModule({ module }: { module: ModuleWithActors }) {
     })
   }
 
+  const isTray = context === 'tray'
+
   if (submitted) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: 'none' }}>
+      <div
+        className={isTray ? 'flex items-center justify-center py-10' : 'absolute inset-0 flex items-center justify-center'}
+        style={{ pointerEvents: 'none' }}
+      >
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '300', letterSpacing: '0.1em' }}>
           {successMessage}
         </p>
@@ -66,8 +73,8 @@ export function FormModule({ module }: { module: ModuleWithActors }) {
 
   return (
     <form
-      className="absolute inset-0 flex flex-col justify-center gap-4"
-      style={{ padding: '24px 32px', pointerEvents: 'auto' }}
+      className={isTray ? 'flex flex-col gap-4' : 'absolute inset-0 flex flex-col justify-center gap-4'}
+      style={{ padding: isTray ? '24px' : '24px 32px', pointerEvents: 'auto' }}
       onSubmit={handleSubmit}
     >
       {fields.map(field => (
