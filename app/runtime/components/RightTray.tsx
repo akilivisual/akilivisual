@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { CanvasWithPlacements, PlacementWithModule } from '@/lib/schema/types'
 import { ModuleRenderer } from '../ModuleRenderer'
+import { useRightTray } from '../context/RightTrayContext'
 
 interface RightTrayProps {
   activeCanvas: CanvasWithPlacements | null
@@ -13,26 +14,25 @@ interface RightTrayProps {
 const TRAY_W = 320
 
 export function RightTray({ activeCanvas, trayPlacements }: RightTrayProps) {
-  const [open, setOpen] = useState(false)
+  const { open, openTray, closeTray } = useRightTray()
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // No trigger strip if there's nothing to show
   if (trayPlacements.length === 0) return null
 
-  function openTray() {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    setOpen(true)
+  function scheduleClose() {
+    closeTimer.current = setTimeout(() => closeTray(), 150)
   }
 
-  function scheduleClose() {
-    closeTimer.current = setTimeout(() => setOpen(false), 150)
+  function cancelClose() {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    openTray()
   }
 
   return (
     <div
       className="fixed right-0 top-0 h-full z-[60]"
       style={{ width: open ? TRAY_W : 20, pointerEvents: 'auto' }}
-      onMouseEnter={openTray}
+      onMouseEnter={cancelClose}
       onMouseLeave={scheduleClose}
     >
       <AnimatePresence>
@@ -52,7 +52,6 @@ export function RightTray({ activeCanvas, trayPlacements }: RightTrayProps) {
               borderLeft: '1px solid rgba(255,255,255,0.07)',
             }}
           >
-            {/* Canvas header */}
             {activeCanvas && (
               <div className="px-7 pt-9 pb-7 shrink-0 border-b border-white/[0.05]">
                 <p className="text-[9px] tracking-[0.3em] uppercase text-white/20 mb-1.5">
@@ -64,7 +63,6 @@ export function RightTray({ activeCanvas, trayPlacements }: RightTrayProps) {
               </div>
             )}
 
-            {/* Tray modules */}
             <div className="flex-1 overflow-y-auto">
               {trayPlacements.map((placement) => (
                 <div

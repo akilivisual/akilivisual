@@ -7,6 +7,7 @@ import { PointerProvider } from './context/PointerContext'
 import { NavigationProvider } from './context/NavigationContext'
 import { LeftTray } from './components/LeftTray'
 import { RightTray } from './components/RightTray'
+import { RightTrayProvider } from './context/RightTrayContext'
 import type { CanvasWithPlacements } from '@/lib/schema/types'
 
 export function StageCarousel() {
@@ -60,7 +61,7 @@ export function StageCarousel() {
 
   return (
     <NavigationProvider canvases={canvases} sectionRefs={sectionRefs}>
-      <>
+      <RightTrayProvider>
         <LeftTray canvases={canvases} activeIndex={activeIndex} />
         <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} />
 
@@ -96,7 +97,7 @@ export function StageCarousel() {
             ))}
           </div>
         )}
-      </>
+      </RightTrayProvider>
     </NavigationProvider>
   )
 }

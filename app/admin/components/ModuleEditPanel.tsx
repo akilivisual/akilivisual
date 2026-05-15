@@ -423,6 +423,7 @@ const CLICK_ACTIONS = [
   { value: 'none',            label: 'None' },
   { value: 'navigate_canvas', label: 'Navigate to State' },
   { value: 'external_link',   label: 'External Link' },
+  { value: 'open_right_tray', label: 'Open Right Tray' },
 ]
 
 function InteractionsTab({ module, onChange }: { module: ModuleWithActors; onChange: (m: ModuleWithActors) => void }) {

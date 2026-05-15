@@ -6,6 +6,7 @@ import { ModuleRenderer } from './ModuleRenderer'
 import { useParallax } from './hooks/useParallax'
 import { useTilt } from './hooks/useTilt'
 import { useNavigation } from './context/NavigationContext'
+import { useRightTray } from './context/RightTrayContext'
 
 interface CanvasRendererProps {
   canvas: CanvasWithPlacements
@@ -90,13 +91,15 @@ function ModuleWrapper({ placement, children }: { placement: PlacementWithModule
   const clickAction = (ip.click_action as string) ?? 'none'
   const clickTarget = (ip.click_target as string) ?? ''
   const clickNewTab = (ip.click_new_tab as boolean) ?? false
-  const clickable = clickAction !== 'none' && !!clickTarget
+  const clickable = clickAction === 'open_right_tray' || (clickAction !== 'none' && !!clickTarget)
 
   const { navigateTo } = useNavigation()
+  const { openTray } = useRightTray()
 
   function handleClick() {
     if (clickAction === 'navigate_canvas') navigateTo(clickTarget)
     else if (clickAction === 'external_link') window.open(clickTarget, clickNewTab ? '_blank' : '_self')
+    else if (clickAction === 'open_right_tray') openTray()
   }
 
   // Always called — hooks are stable regardless of enabled flags
