@@ -265,6 +265,20 @@ export function KeyframeTimeline({
         </div>
 
         <div className="flex flex-col gap-1">
+          <span className="text-[9px] tracking-[0.15em] uppercase text-white/25">Duration</span>
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              value={duration}
+              min={0.1} max={30} step={0.1}
+              onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v > 0) onChangeDuration(Math.round(v * 10) / 10) }}
+              className="w-12 bg-transparent border-b border-white/10 text-white/70 text-[11px] py-1 focus:outline-none focus:border-white/35"
+            />
+            <span className="text-[9px] text-white/20">s</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
           <span className="text-[9px] tracking-[0.15em] uppercase text-white/25">Delay</span>
           <div className="flex items-center gap-1">
             <input

@@ -61,15 +61,15 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
       ...(kf.rotate  ? { rotate:  vals(kf.rotate)  } : {}),
       ...(kf.zIndex  ? { zIndex:  vals(kf.zIndex)  } : {}),
     }
+    const perProp = { duration, delay, ease: 'easeOut' as const, ...(looping ? { repeat: Infinity, repeatType: 'loop' as const } : {}) }
     transition = {
-      duration, delay, ease: 'easeOut' as const,
-      ...(looping ? { repeat: Infinity, repeatType: 'loop' as const } : {}),
-      ...(kf.opacity ? { opacity: { times: times(kf.opacity) } } : {}),
-      ...(kf.scale   ? { scale:   { times: times(kf.scale)   } } : {}),
-      ...(kf.x       ? { x:       { times: times(kf.x)       } } : {}),
-      ...(kf.y       ? { y:       { times: times(kf.y)       } } : {}),
-      ...(kf.rotate  ? { rotate:  { times: times(kf.rotate)  } } : {}),
-      ...(kf.zIndex  ? { zIndex:  { times: times(kf.zIndex)  } } : {}),
+      ...perProp,
+      ...(kf.opacity ? { opacity: { ...perProp, times: times(kf.opacity) } } : {}),
+      ...(kf.scale   ? { scale:   { ...perProp, times: times(kf.scale)   } } : {}),
+      ...(kf.x       ? { x:       { ...perProp, times: times(kf.x)       } } : {}),
+      ...(kf.y       ? { y:       { ...perProp, times: times(kf.y)       } } : {}),
+      ...(kf.rotate  ? { rotate:  { ...perProp, times: times(kf.rotate)  } } : {}),
+      ...(kf.zIndex  ? { zIndex:  { ...perProp, times: times(kf.zIndex)  } } : {}),
     }
   } else switch (preset) {
     case 'fade_in':
