@@ -558,7 +558,7 @@ function MotionTab({ module, onChange }: { module: ModuleWithActors; onChange: (
       </Field>
 
       <Field label="Loop">
-        <Toggle value={(mp.loop as boolean) ?? true} onChange={(v) => set('loop', v)} />
+        <Toggle value={(mp.loop as boolean) ?? false} onChange={(v) => set('loop', v)} />
       </Field>
     </div>
   )

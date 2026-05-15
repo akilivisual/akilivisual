@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useAnimation, useInView } from 'framer-motion'
 import type { Actor } from '@/lib/schema/types'
 import { useMagnetic } from './hooks/useMagnetic'
 
@@ -21,7 +21,6 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   const mr = (tr.margin_right as number) ?? 0
   const mb = (tr.margin_bottom as number) ?? 0
   const ml = (tr.margin_left as number) ?? 0
-  // Fine pixel nudge on top of flow — does NOT affect neighbouring actors
   const ox = (tr.offset_x as number) ?? 0
   const oy = (tr.offset_y as number) ?? 0
 
@@ -34,53 +33,67 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
 
   const easeOut = { duration, delay, ease: 'easeOut' as const }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let initial: any, animate: any, transition: any = easeOut
+  let initial: any, animateTo: any, transition: any = easeOut
 
-  // Final resting state always includes the fine offset and visual props
   const rest = { opacity: opacityVal, scale: scaleVal, rotate: rotateVal, x: ox, y: oy }
 
   switch (preset) {
     case 'fade_in':
       initial = { ...rest, opacity: 0 }
-      animate = rest
+      animateTo = rest
       break
     case 'slide_up':
       initial = { ...rest, opacity: 0, y: oy + 60 }
-      animate = rest
+      animateTo = rest
       break
     case 'slide_down':
       initial = { ...rest, opacity: 0, y: oy - 60 }
-      animate = rest
+      animateTo = rest
       break
     case 'slide_left':
       initial = { ...rest, opacity: 0, x: ox + 60 }
-      animate = rest
+      animateTo = rest
       break
     case 'slide_right':
       initial = { ...rest, opacity: 0, x: ox - 60 }
-      animate = rest
+      animateTo = rest
       break
     case 'scale_in':
       initial = { ...rest, opacity: 0, scale: scaleVal * 0.5 }
-      animate = rest
+      animateTo = rest
       break
     case 'pulse':
       initial = rest
-      animate = { ...rest, opacity: [opacityVal, opacityVal * 0.2, opacityVal] }
+      animateTo = { ...rest, opacity: [opacityVal, opacityVal * 0.2, opacityVal] }
       transition = { duration, delay, repeat: Infinity, ease: 'easeInOut' }
       break
     case 'none':
       initial = rest
-      animate = rest
+      animateTo = rest
       transition = { duration: 0, delay: 0 }
       break
     default: // 'phase_in'
       initial = { ...rest, opacity: 0, scale: scaleVal * 0.92 }
-      animate = rest
+      animateTo = rest
       break
   }
 
   const hidden = !!(actor.metadata as Record<string, unknown>)?.hidden
+
+  // Viewport detection — replay entrance each time the actor scrolls into view
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inView = useInView(containerRef, { amount: 0.1, once: false })
+  const controls = useAnimation()
+
+  useEffect(() => {
+    if (hidden) return
+    if (inView) {
+      controls.start({ ...animateTo, transition })
+    } else if (preset !== 'none') {
+      controls.set(initial)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inView, hidden])
 
   // Magnetic pull — logo/text only, driven by cursor proximity
   const is = (actor.interaction_schema ?? {}) as Record<string, unknown>
@@ -99,10 +112,11 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
     ...(fullWidth ? { position: 'relative' as const, width: '100%', height: '100%', flex: '1 1 auto', minWidth: 0, minHeight: 0 } : {}),
   }
 
-  // Entrance motion — always present
+  // Entrance motion gated on inView
   const entrance = (
     <motion.div
-      initial={initial} animate={animate} transition={transition}
+      initial={initial}
+      animate={controls}
       style={fullWidth ? { width: '100%', height: '100%' } : undefined}
     >
       <ActorRenderer actor={actor} />
@@ -118,8 +132,11 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
 
   // Module ambient loop — runs after entrance settles, skipped if actor already pulses
   const hasAmbient = !!(moduleMotion?.loop) && preset !== 'pulse'
+  const ambientEasing = (moduleMotion?.easing_type as string) ?? 'easeInOut'
+  const speed = (moduleMotion?.pulse_speed as number) ?? 1
+
   if (!hasAmbient) {
-    return <div style={outerStyle}>{withMagnetic}</div>
+    return <div ref={containerRef} style={outerStyle}>{withMagnetic}</div>
   }
 
   const ambientDelay = duration + delay + ((moduleMotion?.delay as number) ?? 0)
@@ -127,13 +144,14 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   const opMax = (moduleMotion?.opacity_max as number) ?? 1
   const scMin = (moduleMotion?.scale_min as number) ?? 1
   const scMax = (moduleMotion?.scale_max as number) ?? 1
-  const ambientDur = (moduleMotion?.duration as number) ?? 3
+  const ambientDur = ((moduleMotion?.duration as number) ?? 3) / Math.max(speed, 0.1)
 
   return (
     <motion.div
+      ref={containerRef}
       style={outerStyle}
       animate={{ opacity: [opMin, opMax, opMin], scale: [scMin, scMax, scMin] }}
-      transition={{ duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: 'easeInOut', repeatType: 'loop' }}
+      transition={{ duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' }}
     >
       {withMagnetic}
     </motion.div>

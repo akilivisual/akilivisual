@@ -44,10 +44,11 @@ export function LeftTray({ canvases, activeIndex }: LeftTrayProps) {
             className="absolute left-0 top-0 h-full flex flex-col"
             style={{
               width: TRAY_W,
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              background: 'rgba(4,4,4,0.72)',
-              borderRight: '1px solid rgba(255,255,255,0.07)',
+              backdropFilter: 'blur(36px) saturate(1.6)',
+              WebkitBackdropFilter: 'blur(36px) saturate(1.6)',
+              background: 'rgba(10,10,10,0.66)',
+              borderRight: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: 'inset -1px 0 0 rgba(255,255,255,0.04), 4px 0 40px rgba(0,0,0,0.4)',
             }}
           >
             {/* Wordmark */}
