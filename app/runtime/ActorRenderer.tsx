@@ -165,7 +165,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   ) : entrance
 
   // Module ambient loop — runs after entrance settles, skipped if actor already pulses
-  const hasAmbient = !!(moduleMotion?.loop) && !hasKF && preset !== 'pulse'
+  const hasAmbient = !!(moduleMotion?.loop) && preset !== 'pulse'
   const ambientEasing = (moduleMotion?.easing_type as string) ?? 'easeInOut'
   const speed = (moduleMotion?.pulse_speed as number) ?? 1
 
@@ -185,18 +185,16 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
         ...(mkf.opacity ? { opacity: mkf.opacity.map(k => k.v) } : {}),
         ...(mkf.scale   ? { scale:   mkf.scale.map(k => k.v)   } : {}),
       }
-    : {
-        opacity: [(moduleMotion?.opacity_min as number) ?? 0.7, (moduleMotion?.opacity_max as number) ?? 1, (moduleMotion?.opacity_min as number) ?? 0.7],
-        scale:   [(moduleMotion?.scale_min   as number) ?? 1,   (moduleMotion?.scale_max   as number) ?? 1, (moduleMotion?.scale_min   as number) ?? 1],
-      }
+    : { opacity: [0.7, 1, 0.7] }
 
+  const ambientBase = { duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' as const }
   const ambientTransition = hasMKF
     ? {
-        duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' as const,
-        ...(mkf.opacity ? { opacity: { times: mkf.opacity.map(k => k.t) } } : {}),
-        ...(mkf.scale   ? { scale:   { times: mkf.scale.map(k => k.t)   } } : {}),
+        ...ambientBase,
+        ...(mkf.opacity ? { opacity: { ...ambientBase, times: mkf.opacity.map(k => k.t) } } : {}),
+        ...(mkf.scale   ? { scale:   { ...ambientBase, times: mkf.scale.map(k => k.t)   } } : {}),
       }
-    : { duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' as const }
+    : ambientBase
 
   return (
     <motion.div
