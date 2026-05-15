@@ -19,7 +19,10 @@ export function CanvasEditor({ placements, selectedId, onSelect, onCommit, onDel
   }
 
   // Sort by order_index ascending — index 0 is background (lowest z), last is foreground (highest z)
-  const sorted = [...placements].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+  // Exclude tray placements — they don't render on the canvas surface (matches runtime behavior)
+  const sorted = [...placements]
+    .filter(p => ((p.overrides ?? {}) as Record<string, unknown>).context !== 'tray')
+    .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
 
   return (
     <div

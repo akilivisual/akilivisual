@@ -33,6 +33,17 @@ function StageCarouselInner() {
       setAlbums(albs)
       setLoaded(true)
     })
+
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        Promise.all([fetchAllCanvases(), fetchAllAlbums()]).then(([cvs, albs]) => {
+          setCanvases(cvs)
+          setAlbums(albs)
+        })
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   useEffect(() => {

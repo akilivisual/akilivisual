@@ -35,6 +35,13 @@ export function RightTray({ activeCanvas, trayPlacements }: RightTrayProps) {
       onMouseEnter={cancelClose}
       onMouseLeave={scheduleClose}
     >
+      {/* Visible edge indicator — shows a slim line so the user knows the tray exists */}
+      {!open && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-[2px]"
+          style={{ background: 'rgba(255,255,255,0.10)' }}
+        />
+      )}
       <AnimatePresence>
         {open && (
           <motion.div
