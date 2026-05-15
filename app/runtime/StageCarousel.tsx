@@ -66,7 +66,7 @@ export function StageCarousel() {
         <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} />
 
         {/* Scroll container */}
-        <div className="h-screen overflow-y-scroll snap-y snap-mandatory">
+        <div className="h-screen overflow-y-scroll snap-y snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
           {canvases.map((canvas, i) => (
             <div
               key={canvas.id}
