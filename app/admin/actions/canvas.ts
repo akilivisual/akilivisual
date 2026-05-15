@@ -60,6 +60,17 @@ export async function reorderPlacements(
 // Legacy alias kept briefly for any remaining callers
 export const reorderModules = reorderPlacements
 
+export async function updateCanvasMetadata(
+  id: string,
+  metadata: Record<string, unknown>
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { error } = await supabase.from('canvases').update({ metadata }).eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin')
+  return { ok: true }
+}
+
 export async function deleteCanvasById(id: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = getAdminSupabase()
   const { error } = await supabase.from('canvases').delete().eq('id', id)

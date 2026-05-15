@@ -133,35 +133,69 @@ export function LeftTray({ canvases, albums, activeIndex }: LeftTrayProps) {
                 </section>
               )}
 
-              {/* States */}
+              {/* States — thumbnail cards */}
               <section>
                 <p className="text-[9px] tracking-[0.3em] uppercase text-white/20 mb-4">
                   States{(activeAlbumId || activeLens) ? ' — filtered' : ''}
                 </p>
-                <div className="flex flex-col">
-                  {canvases.map((canvas, i) => (
-                    <button
-                      key={canvas.id}
-                      onClick={() => { navigateTo(canvas.slug); setOpen(false) }}
-                      className="flex items-center gap-3 py-2.5 text-left group"
-                    >
-                      <span
-                        className="w-1 h-1 rounded-full shrink-0 transition-all duration-300"
+                <div className="flex flex-col gap-2">
+                  {canvases.map((canvas, i) => {
+                    const thumbUrl = (canvas.metadata as Record<string, unknown>)?.thumbnail_url as string | undefined
+                    const isActive = i === activeIndex
+                    return (
+                      <button
+                        key={canvas.id}
+                        onClick={() => { navigateTo(canvas.slug); setOpen(false) }}
+                        className="relative w-full overflow-hidden text-left transition-all duration-200"
                         style={{
-                          backgroundColor: i === activeIndex
-                            ? 'rgba(255,255,255,0.7)'
-                            : 'rgba(255,255,255,0.15)',
-                          transform: i === activeIndex ? 'scale(1.5)' : 'scale(1)',
+                          height: 110,
+                          border: `1px solid ${isActive ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                          outline: isActive ? '1px solid rgba(255,255,255,0.15)' : 'none',
+                          outlineOffset: isActive ? '2px' : '0',
                         }}
-                      />
-                      <span
-                        className="text-sm font-light tracking-wide transition-colors duration-200"
-                        style={{ color: i === activeIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)' }}
                       >
-                        {canvas.title}
-                      </span>
-                    </button>
-                  ))}
+                        {/* Thumbnail image or placeholder */}
+                        {thumbUrl ? (
+                          <img
+                            src={thumbUrl}
+                            alt={canvas.title}
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
+                            style={{ transform: isActive ? 'scale(1.03)' : 'scale(1)' }}
+                          />
+                        ) : (
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              background: `linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)`,
+                            }}
+                          />
+                        )}
+
+                        {/* Gradient overlay */}
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 55%, rgba(0,0,0,0.05) 100%)',
+                          }}
+                        />
+
+                        {/* Text */}
+                        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-6">
+                          {canvas.canvas_type && (
+                            <p className="text-[8px] tracking-[0.2em] uppercase text-white/35 mb-0.5">
+                              {canvas.canvas_type}
+                            </p>
+                          )}
+                          <p
+                            className="text-[12px] font-light tracking-wide leading-tight"
+                            style={{ color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.7)' }}
+                          >
+                            {canvas.title}
+                          </p>
+                        </div>
+                      </button>
+                    )
+                  })}
                   {canvases.length === 0 && (
                     <p className="text-[10px] text-white/15 italic">No states match</p>
                   )}

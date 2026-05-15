@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { AnimatePresence } from 'framer-motion'
-import type { Album, CanvasWithPlacements, PlacementWithModule } from '@/lib/schema/types'
+import type { Album, CanvasWithPlacements, MediaAsset, PlacementWithModule } from '@/lib/schema/types'
 import { LENS_OPTIONS } from '@/lib/schema/types'
 import { updatePlacement, deletePlacement } from '@/app/admin/actions/modules'
+import { updateCanvasMetadata } from '@/app/admin/actions/canvas'
 import { assignStateToAlbum, updateCanvasLenses } from '@/app/admin/actions/albums'
+import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
+import { getSupabase } from '@/lib/supabase/client'
 import { PlacementList } from './PlacementList'
 import { CanvasEditor } from './CanvasEditor'
 import { ModuleEditPanel } from './ModuleEditPanel'
@@ -25,6 +28,38 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
   const [editing, setEditing] = useState<PlacementWithModule | null>(null)
   const [albumId, setAlbumId] = useState<string>(canvas.album_id ?? '')
   const [lenses, setLenses] = useState<string[]>(canvas.lenses ?? [])
+  const [thumbnail, setThumbnail] = useState<string>((canvas.metadata?.thumbnail_url as string) ?? '')
+  const [showLibrary, setShowLibrary] = useState(false)
+  const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function saveThumbnail(url: string) {
+    setThumbnail(url)
+    await updateCanvasMetadata(canvas.id, { ...canvas.metadata, thumbnail_url: url || undefined })
+  }
+
+  async function openLibrary() {
+    setShowLibrary(true)
+    const assets = await listMediaAssets()
+    setLibraryAssets(assets.filter(a => a.asset_type === 'image'))
+  }
+
+  async function handleThumbnailUpload(file: File) {
+    setUploading(true)
+    try {
+      const supabase = getSupabase()
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (error) return
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
+      await createMediaAsset(publicUrl, 'image', file.name.replace(/\.[^.]+$/, ''), path)
+      await saveThumbnail(publicUrl)
+    } finally {
+      setUploading(false)
+    }
+  }
   const [mode, setMode] = useState<Mode>('edit')
   const [viewport, setViewport] = useState<'landscape' | 'portrait'>('landscape')
 
@@ -148,6 +183,65 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
               })}
             </div>
           </div>
+        </div>
+
+        {/* Thumbnail */}
+        <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-3">
+          <span className="text-[9px] tracking-[0.2em] uppercase text-white/25">Thumbnail</span>
+          {thumbnail ? (
+            <div className="relative group">
+              <img src={thumbnail} alt="" className="w-full h-28 object-cover border border-white/10" />
+              <button
+                onClick={() => saveThumbnail('')}
+                className="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center bg-black/60 text-white/40 hover:text-white/80 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <div className="w-full h-20 border border-dashed border-white/10 flex items-center justify-center">
+              <span className="text-[9px] text-white/15 italic">no thumbnail</span>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 disabled:text-white/15 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5"
+            >
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+            <button
+              onClick={openLibrary}
+              className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5"
+            >
+              Library
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbnailUpload(f) }} />
+          </div>
+          {showLibrary && (
+            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-white/20 tracking-[0.1em] uppercase">Choose image</span>
+                <button onClick={() => setShowLibrary(false)} className="text-[9px] text-white/20 hover:text-white/50">close</button>
+              </div>
+              {libraryAssets.length === 0 ? (
+                <p className="text-[9px] text-white/15 italic">No images in library</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {libraryAssets.map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => { saveThumbnail(a.url); setShowLibrary(false) }}
+                      className="aspect-video border border-white/10 hover:border-white/30 overflow-hidden transition-colors"
+                    >
+                      <img src={a.url} alt={a.title ?? ''} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Placement list */}
