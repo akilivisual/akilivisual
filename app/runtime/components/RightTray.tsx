@@ -53,7 +53,10 @@ export function RightTray({ activeCanvas, trayPlacements }: RightTrayProps) {
             }}
           >
             {activeCanvas && (
-              <div className="px-7 pt-9 pb-7 shrink-0 border-b border-white/[0.05]">
+              <div
+                className="px-7 pt-9 pb-7 shrink-0 border-b border-white/[0.05]"
+                style={{ position: 'relative', zIndex: 1 }}
+              >
                 <p className="text-[9px] tracking-[0.3em] uppercase text-white/20 mb-1.5">
                   {activeCanvas.canvas_type}
                 </p>
@@ -63,7 +66,7 @@ export function RightTray({ activeCanvas, trayPlacements }: RightTrayProps) {
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" style={{ position: 'relative' }}>
               {trayPlacements.map((placement) => (
                 <div
                   key={placement.id}
