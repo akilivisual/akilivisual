@@ -106,6 +106,7 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
             onEdit={setEditing}
             onAdd={(placement) => setPlacements(prev => [...prev, placement])}
             onSaved={() => setRefreshKey(k => k + 1)}
+            onReorder={setPlacements}
           />
         </div>
 

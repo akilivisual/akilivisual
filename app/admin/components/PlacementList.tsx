@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Reorder, useDragControls } from 'framer-motion'
 import type { PlacementWithModule, Actor } from '@/lib/schema/types'
 import { reorderPlacements } from '@/app/admin/actions/canvas'
@@ -15,9 +15,10 @@ interface PlacementListProps {
   onEdit: (placement: PlacementWithModule) => void
   onSaved?: () => void
   onAdd?: (placement: PlacementWithModule) => void
+  onReorder?: (reordered: PlacementWithModule[]) => void
 }
 
-export function PlacementList({ placements: initial, canvasId, selectedId, onEdit, onSaved, onAdd }: PlacementListProps) {
+export function PlacementList({ placements: initial, canvasId, selectedId, onEdit, onSaved, onAdd, onReorder }: PlacementListProps) {
   const [placements, setPlacements] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -73,10 +74,22 @@ export function PlacementList({ placements: initial, canvasId, selectedId, onEdi
   }
 
   async function handleReorder(reordered: PlacementWithModule[]) {
-    setPlacements(reordered)
+    // Update order_index locally so CanvasEditor z-index reflects the new order immediately
+    const withIndex = reordered.map((p, i) => ({ ...p, order_index: i }))
+    setPlacements(withIndex)
+    onReorder?.(withIndex)
     setSaving(true)
     await reorderPlacements(reordered.map(p => p.id))
     setSaving(false)
+  }
+
+  async function handleNameChange(placementId: string, moduleId: string, name: string) {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setPlacements(prev => prev.map(p =>
+      p.id === placementId ? { ...p, module: { ...p.module, name: trimmed } } : p
+    ))
+    await updateModule(moduleId, { name: trimmed })
   }
 
   async function handleToggleHidden(placementId: string) {
@@ -131,6 +144,7 @@ export function PlacementList({ placements: initial, canvasId, selectedId, onEdi
               onEdit={() => onEdit(placement)}
               onDelete={() => handleDelete(placement.id)}
               onToggleHidden={() => handleToggleHidden(placement.id)}
+              onNameChange={(name) => handleNameChange(placement.id, placement.module.id, name)}
             />
           ))}
         </Reorder.Group>
@@ -165,6 +179,7 @@ function DraggablePlacement({
   onEdit,
   onDelete,
   onToggleHidden,
+  onNameChange,
 }: {
   placement: PlacementWithModule
   index: number
@@ -172,11 +187,28 @@ function DraggablePlacement({
   onEdit: () => void
   onDelete: () => void
   onToggleHidden: () => void
+  onNameChange: (name: string) => void
 }) {
   const controls = useDragControls()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [localName, setLocalName] = useState(placement.module.name ?? placement.module.module_type)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const hidden = !!((placement.module.props as Record<string, unknown>)?.hidden)
   const mod = placement.module
+
+  useEffect(() => {
+    setLocalName(mod.name ?? mod.module_type)
+  }, [mod.name, mod.module_type])
+
+  function commitName() {
+    setEditingName(false)
+    const trimmed = localName.trim() || (mod.name ?? mod.module_type)
+    setLocalName(trimmed)
+    if (trimmed !== (mod.name ?? mod.module_type)) {
+      onNameChange(trimmed)
+    }
+  }
 
   return (
     <Reorder.Item
@@ -205,27 +237,48 @@ function DraggablePlacement({
             <span className="w-3 h-px bg-white block" />
           </div>
 
-          <span className="shrink-0 text-[10px] text-white/20 w-4">{index + 1}</span>
+          <span className="shrink-0 text-[10px] text-white/20 w-4 tabular-nums">{index + 1}</span>
 
           <div className="min-w-0">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="text-sm tracking-wide text-white truncate">
-                {mod.name ?? mod.module_type}
-              </span>
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  value={localName}
+                  onChange={(e) => setLocalName(e.target.value)}
+                  onBlur={commitName}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitName()
+                    if (e.key === 'Escape') { setLocalName(mod.name ?? mod.module_type); setEditingName(false) }
+                    e.stopPropagation()
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-sm tracking-wide text-white bg-transparent border-b border-white/30 focus:outline-none focus:border-white/60 min-w-0 flex-1"
+                  autoFocus
+                />
+              ) : (
+                <button
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); setEditingName(true); setTimeout(() => nameInputRef.current?.select(), 0) }}
+                  className="text-sm tracking-wide text-white truncate hover:text-white/60 transition-colors text-left"
+                  title="Click to rename"
+                >
+                  {localName}
+                </button>
+              )}
               <span className="shrink-0 text-[10px] tracking-[0.15em] uppercase text-white/25 border border-white/10 px-2 py-0.5">
                 {mod.module_type}
               </span>
             </div>
-            <p className="text-[10px] text-white/25 mt-0.5 tracking-[0.1em]">
-              layer: {placement.depth_layer} · order: {placement.order_index}
+            <p className="text-[10px] text-white/20 mt-0.5 tracking-[0.1em]">
+              {index === 0 ? 'background' : `layer ${index + 1}`} · {mod.actors.length} {mod.actors.length === 1 ? 'actor' : 'actors'}
             </p>
           </div>
         </div>
 
         <div className="shrink-0 flex items-center gap-3">
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/25">
-            {mod.actors.length} {mod.actors.length === 1 ? 'actor' : 'actors'}
-          </span>
           <button
             onClick={onToggleHidden}
             className={`py-1.5 px-2.5 border text-[10px] tracking-[0.15em] uppercase transition-colors ${

@@ -11,8 +11,6 @@ interface Props {
   onDelete: (placementId: string) => void
 }
 
-const LAYER_Z: Record<string, number> = { background: 1, midground: 2, foreground: 3 }
-
 export function CanvasEditor({ placements, selectedId, onSelect, onCommit, onDelete }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -20,9 +18,8 @@ export function CanvasEditor({ placements, selectedId, onSelect, onCommit, onDel
     if (e.target === e.currentTarget) onSelect(null as unknown as PlacementWithModule)
   }
 
-  const sorted = [...placements].sort(
-    (a, b) => (LAYER_Z[a.depth_layer ?? 'midground'] ?? 2) - (LAYER_Z[b.depth_layer ?? 'midground'] ?? 2)
-  )
+  // Sort by order_index ascending — index 0 is background (lowest z), last is foreground (highest z)
+  const sorted = [...placements].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
 
   return (
     <div
@@ -45,10 +42,11 @@ export function CanvasEditor({ placements, selectedId, onSelect, onCommit, onDel
       <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/[0.06] pointer-events-none" />
       <div className="absolute top-1/2 left-0 right-0 h-px bg-white/[0.06] pointer-events-none" />
 
-      {sorted.map((placement) => (
+      {sorted.map((placement, sortedIndex) => (
         <ModuleCard
           key={placement.id}
           placement={placement}
+          layerIndex={sortedIndex}
           selected={selectedId === placement.id}
           containerRef={containerRef}
           onSelect={() => onSelect(placement)}
@@ -62,6 +60,7 @@ export function CanvasEditor({ placements, selectedId, onSelect, onCommit, onDel
 
 function ModuleCard({
   placement,
+  layerIndex,
   selected,
   containerRef,
   onSelect,
@@ -69,6 +68,7 @@ function ModuleCard({
   onDelete,
 }: {
   placement: PlacementWithModule
+  layerIndex: number
   selected: boolean
   containerRef: React.RefObject<HTMLDivElement | null>
   onSelect: () => void
@@ -223,11 +223,8 @@ function ModuleCard({
   // Media fills the card whenever the card has been explicitly sized OR actor has full_width
   const fillCard = hasFullWidth || (localW !== undefined && localH !== undefined)
 
-  const depthDot: Record<string, string> = {
-    background: 'bg-white/20',
-    midground: 'bg-white/45',
-    foreground: 'bg-white/80',
-  }
+  // Dot brightness reflects layer depth — dimmer = further back
+  const dotOpacity = `rgba(255,255,255,${Math.min(0.2 + layerIndex * 0.15, 0.85).toFixed(2)})`
 
   // Atmosphere: full-canvas overlay with color preview
   if (isAtmosphere) {
@@ -243,7 +240,7 @@ function ModuleCard({
         className={`absolute inset-4 border transition-all pointer-events-auto overflow-hidden ${
           selected ? 'border-white/30' : 'border-white/[0.06] hover:border-white/15'
         } ${hidden ? 'opacity-30' : ''}`}
-        style={{ zIndex: LAYER_Z[placement.depth_layer ?? 'midground'] ?? 2 }}
+        style={{ zIndex: layerIndex + 1 }}
         onMouseDown={handleMouseDown}
         onClick={(e) => e.stopPropagation()}
       >
@@ -280,7 +277,7 @@ function ModuleCard({
         left: `calc(50% + ${localX}%)`,
         top: `calc(50% + ${localY}%)`,
         transform: `translate(-50%, -50%) rotate(${localRotate}deg)`,
-        zIndex: dragging ? 50 : (LAYER_Z[placement.depth_layer ?? 'midground'] ?? 2),
+        zIndex: dragging ? 999 : (layerIndex + 1),
         width: localW !== undefined ? `${localW}%` : (hasFullWidth ? '100%' : undefined),
         height: localH !== undefined ? `${localH}%` : (hasFullWidth ? '100%' : undefined),
       }}
@@ -290,7 +287,7 @@ function ModuleCard({
       {/* Always-visible label strip above card — unobtrusive, not full-canvas */}
       {!fullCanvas && (
         <div className={`absolute -top-5 left-0 right-0 flex items-center gap-1.5 pointer-events-none transition-opacity duration-150 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-          <div className={`w-1 h-1 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
+          <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: dotOpacity }} />
           <span className="text-[9px] text-white/30 truncate flex-1 min-w-0">
             {mod.name ?? mod.module_type}
           </span>
@@ -336,7 +333,7 @@ function ModuleCard({
         {fullCanvas && (
           <>
             <div className="absolute top-2 left-3 z-20 flex items-center gap-1.5 pointer-events-none">
-              <div className={`w-1 h-1 rounded-full shrink-0 ${depthDot[placement.depth_layer ?? 'midground']}`} />
+              <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: dotOpacity }} />
               <span className="text-[9px] text-white/30 truncate max-w-[200px]">
                 {mod.name ?? mod.module_type}
               </span>

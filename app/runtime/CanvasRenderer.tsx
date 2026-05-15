@@ -27,15 +27,14 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           ease: transition?.easing ?? 'easeInOut',
         }}
       >
-        {canvas.placements.map((placement) => {
+        {[...canvas.placements].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((placement, sortedIndex) => {
           const pos = (placement.position ?? {}) as Record<string, unknown>
           const mx = (pos.x as number) ?? 0
           const my = (pos.y as number) ?? 0
-          const mz = (pos.z as number) ?? 0
           const mw = pos.width as number | undefined
           const mh = pos.height as number | undefined
           const mr = (pos.rotate as number) ?? 0
-          const depthZ = { background: 0, midground: 5, foreground: 10 }[placement.depth_layer ?? 'midground'] ?? 5
+          const depthZ = sortedIndex
 
           // When the placement has explicit dimensions, media fills the container
           const hasExplicitSize = mw !== undefined && mh !== undefined
@@ -60,7 +59,7 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
                 width: mw !== undefined ? `${mw}%` : '100%',
                 height: mh !== undefined ? `${mh}%` : '100%',
                 transform: `translate(-50%, -50%) rotate(${mr}deg)`,
-                zIndex: depthZ + mz,
+                zIndex: depthZ,
                 pointerEvents: 'none',
                 overflow: hasExplicitSize ? 'hidden' : undefined,
               }}
