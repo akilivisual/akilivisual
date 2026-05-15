@@ -31,7 +31,8 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   const delay = (ms.delay as number) ?? 0
   const preset = (ms.preset as string) ?? 'phase_in'
 
-  const easeOut = { duration, delay, ease: 'easeOut' as const }
+  const easingType = (ms.easing_type as string) ?? 'easeOut'
+  const easeOut = { duration, delay, ease: easingType }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let initial: any, animateTo: any, transition: any = easeOut
 
@@ -61,7 +62,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
       ...(kf.rotate  ? { rotate:  vals(kf.rotate)  } : {}),
       ...(kf.zIndex  ? { zIndex:  vals(kf.zIndex)  } : {}),
     }
-    const perProp = { duration, delay, ease: 'easeOut' as const, ...(looping ? { repeat: Infinity, repeatType: 'loop' as const } : {}) }
+    const perProp = { duration, delay, ease: easingType, ...(looping ? { repeat: Infinity, repeatType: 'loop' as const } : {}) }
     transition = {
       ...perProp,
       ...(kf.opacity ? { opacity: { ...perProp, times: times(kf.opacity) } } : {}),

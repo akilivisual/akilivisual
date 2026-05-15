@@ -11,12 +11,14 @@ interface KeyframeTimelineProps {
   delay: number
   loop: boolean
   preset: string
+  easing: string
   properties?: (keyof KeyframeMap)[]
   onChangeTracks: (kf: KeyframeMap) => void
   onChangeDuration: (d: number) => void
   onChangeDelay: (d: number) => void
   onChangeLoop: (l: boolean) => void
   onChangePreset: (p: string) => void
+  onChangeEasing: (e: string) => void
 }
 
 // ── Track config ──────────────────────────────────────────────────────
@@ -58,18 +60,22 @@ const TRACK_H = 24   // px — height of each track row
 
 // ── Component ─────────────────────────────────────────────────────────
 
+const EASING_OPTIONS = ['easeOut', 'easeIn', 'easeInOut', 'linear', 'circOut', 'backOut']
+
 export function KeyframeTimeline({
   tracks,
   duration,
   delay,
   loop,
   preset,
+  easing,
   properties,
   onChangeTracks,
   onChangeDuration,
   onChangeDelay,
   onChangeLoop,
   onChangePreset,
+  onChangeEasing,
 }: KeyframeTimelineProps) {
   const [selected, setSelected] = useState<{ key: keyof KeyframeMap; idx: number } | null>(null)
   // tooltip while scrubbing: {key, idx, label}
@@ -306,6 +312,19 @@ export function KeyframeTimeline({
           >
             {loop ? 'on' : 'off'}
           </button>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[9px] tracking-[0.15em] uppercase text-white/25">Ease</span>
+          <select
+            value={easing}
+            onChange={e => onChangeEasing(e.target.value)}
+            className="bg-black border-b border-white/10 text-white/70 text-[11px] py-1 pr-2 focus:outline-none focus:border-white/35"
+          >
+            {EASING_OPTIONS.map(e => (
+              <option key={e} value={e}>{e}</option>
+            ))}
+          </select>
         </div>
 
         {/* Delete selected */}

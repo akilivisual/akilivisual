@@ -538,12 +538,14 @@ function MotionTab({ module, onChange }: { module: ModuleWithActors; onChange: (
         delay={(mp.delay as number) ?? 0}
         loop={!!(mp.loop)}
         preset="none"
+        easing={(mp.easing_type as string) ?? 'easeInOut'}
         properties={['opacity', 'scale']}
         onChangeTracks={(kf) => set('keyframes', kf)}
         onChangeDuration={(d) => set('duration', d)}
         onChangeDelay={(d) => set('delay', d)}
         onChangeLoop={(l) => set('loop', l)}
         onChangePreset={() => {}}
+        onChangeEasing={(e) => set('easing_type', e)}
       />
     </div>
   )
@@ -1677,11 +1679,13 @@ function ActorEditor({
                 delay={(ms.delay as number) ?? 0}
                 loop={!!(ms.loop)}
                 preset={(ms.preset as string) ?? 'phase_in'}
+                easing={(ms.easing_type as string) ?? 'easeOut'}
                 onChangeTracks={(kf) => setMS('keyframes', kf)}
                 onChangeDuration={(d) => setMS('duration', d)}
                 onChangeDelay={(d) => setMS('delay', d)}
                 onChangeLoop={(l) => setMS('loop', l)}
                 onChangePreset={(p) => setMS('preset', p)}
+                onChangeEasing={(e) => setMS('easing_type', e)}
               />
 
               {(actor.actor_type === 'logo' || actor.actor_type === 'text') && (
