@@ -19,7 +19,7 @@ interface KeyframeTimelineProps {
   onChangePreset: (p: string) => void
 }
 
-// ── Constants ─────────────────────────────────────────────────────────
+// ── Track config ──────────────────────────────────────────────────────
 
 const TRACKS_CONFIG: {
   key: keyof KeyframeMap
@@ -28,14 +28,16 @@ const TRACKS_CONFIG: {
   max: number
   step: number
   defaultV: number
+  // sensitivity: value change per pixel of vertical drag
+  sensitivity: number
   fmt: (v: number) => string
 }[] = [
-  { key: 'opacity', label: 'opacity', min: 0,    max: 1,    step: 0.01, defaultV: 1,  fmt: v => v.toFixed(2) },
-  { key: 'scale',   label: 'scale',   min: 0,    max: 3,    step: 0.01, defaultV: 1,  fmt: v => v.toFixed(2) },
-  { key: 'x',       label: 'x',       min: -500, max: 500,  step: 1,    defaultV: 0,  fmt: v => `${Math.round(v)}px` },
-  { key: 'y',       label: 'y',       min: -500, max: 500,  step: 1,    defaultV: 0,  fmt: v => `${Math.round(v)}px` },
-  { key: 'rotate',  label: 'rotate',  min: -360, max: 360,  step: 1,    defaultV: 0,  fmt: v => `${Math.round(v)}°` },
-  { key: 'zIndex',  label: 'z',       min: 0,    max: 100,  step: 1,    defaultV: 0,  fmt: v => `${Math.round(v)}` },
+  { key: 'opacity', label: 'opacity', min: 0,    max: 1,    step: 0.01, defaultV: 1,  sensitivity: 0.005, fmt: v => v.toFixed(2) },
+  { key: 'scale',   label: 'scale',   min: 0,    max: 3,    step: 0.01, defaultV: 1,  sensitivity: 0.015, fmt: v => v.toFixed(2) },
+  { key: 'x',       label: 'x',       min: -500, max: 500,  step: 1,    defaultV: 0,  sensitivity: 2.5,   fmt: v => `${Math.round(v)}` },
+  { key: 'y',       label: 'y',       min: -500, max: 500,  step: 1,    defaultV: 0,  sensitivity: 2.5,   fmt: v => `${Math.round(v)}` },
+  { key: 'rotate',  label: 'rotate',  min: -360, max: 360,  step: 1,    defaultV: 0,  sensitivity: 3,     fmt: v => `${Math.round(v)}°` },
+  { key: 'zIndex',  label: 'z',       min: 0,    max: 100,  step: 1,    defaultV: 0,  sensitivity: 0.5,   fmt: v => `${Math.round(v)}` },
 ]
 
 export const PRESET_KEYFRAMES: Record<string, KeyframeMap> = {
@@ -50,7 +52,9 @@ export const PRESET_KEYFRAMES: Record<string, KeyframeMap> = {
   none:        {},
 }
 
-const LABEL_W = 52  // px
+const LABEL_W = 48   // px — property label column
+const HANDLE_W = 8   // px — duration drag handle
+const TRACK_H = 24   // px — height of each track row
 
 // ── Component ─────────────────────────────────────────────────────────
 
@@ -68,13 +72,19 @@ export function KeyframeTimeline({
   onChangePreset,
 }: KeyframeTimelineProps) {
   const [selected, setSelected] = useState<{ key: keyof KeyframeMap; idx: number } | null>(null)
+  // tooltip while scrubbing: {key, idx, label}
+  const [tooltip, setTooltip] = useState<{ key: keyof KeyframeMap; idx: number; x: number; y: number } | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
+  const mountedRef = useRef(true)
   const dragRef = useRef<{
     key: keyof KeyframeMap
     idx: number
+    startX: number
+    startY: number
+    startT: number
+    startV: number
     currentTracks: KeyframeMap
   } | null>(null)
-  const mountedRef = useRef(true)
 
   useEffect(() => {
     mountedRef.current = true
@@ -85,23 +95,35 @@ export function KeyframeTimeline({
     ? TRACKS_CONFIG.filter(c => properties.includes(c.key))
     : TRACKS_CONFIG
 
-  function getT(clientX: number): number {
+  // ── Helpers ────────────────────────────────────────────────────────
+
+  function getTrackRect() {
     const el = timelineRef.current
-    if (!el) return 0
-    const rect = el.getBoundingClientRect()
-    const trackW = rect.width - LABEL_W
+    if (!el) return null
+    return el.getBoundingClientRect()
+  }
+
+  function clientXToT(clientX: number): number {
+    const rect = getTrackRect()
+    if (!rect) return 0
+    const trackW = rect.width - LABEL_W - HANDLE_W
     return Math.max(0, Math.min(1, (clientX - rect.left - LABEL_W) / trackW))
   }
+
+  // ── Preset ─────────────────────────────────────────────────────────
 
   function handlePresetChange(p: string) {
     onChangePreset(p)
     onChangeTracks(PRESET_KEYFRAMES[p] ?? {})
     setSelected(null)
+    setTooltip(null)
   }
+
+  // ── Track click — add keyframe ─────────────────────────────────────
 
   function handleTrackClick(e: React.MouseEvent, key: keyof KeyframeMap, cfg: typeof TRACKS_CONFIG[0]) {
     if (dragRef.current) return
-    const t = getT(e.clientX)
+    const t = clientXToT(e.clientX)
     const track = tracks[key] ?? []
     if (track.some(k => Math.abs(k.t - t) < 0.025)) return
     const newKf: KeyframePoint = { t, v: cfg.defaultV }
@@ -111,50 +133,103 @@ export function KeyframeTimeline({
     setSelected({ key, idx: newIdx })
   }
 
+  // ── Diamond drag — horizontal = time, vertical = value scrub ───────
+
   function handleDiamondMouseDown(e: React.MouseEvent, key: keyof KeyframeMap, idx: number) {
     e.stopPropagation()
     e.preventDefault()
     setSelected({ key, idx })
-    dragRef.current = { key, idx, currentTracks: tracks }
+
+    const kfTrack = tracks[key] ?? []
+    dragRef.current = {
+      key, idx,
+      startX: e.clientX,
+      startY: e.clientY,
+      startT: kfTrack[idx]?.t ?? 0,
+      startV: kfTrack[idx]?.v ?? 0,
+      currentTracks: tracks,
+    }
 
     function onMove(ev: MouseEvent) {
       const dr = dragRef.current
       if (!dr || !mountedRef.current) return
-      const t = getT(ev.clientX)
+      const cfg = TRACKS_CONFIG.find(c => c.key === dr.key)!
+
+      const dx = ev.clientX - dr.startX
+      const dy = dr.startY - ev.clientY  // inverted: drag up = increase value
+
+      // Horizontal → time position
+      const rect = getTrackRect()
+      const trackW = rect ? rect.width - LABEL_W - HANDLE_W : 1
+      const newT = Math.max(0, Math.min(1, dr.startT + dx / trackW))
+
+      // Vertical → value scrub
+      const newV = Math.max(cfg.min, Math.min(cfg.max, dr.startV + dy * cfg.sensitivity))
+
       const track = [...(dr.currentTracks[dr.key] ?? [])]
-      track[dr.idx] = { ...track[dr.idx], t }
+      track[dr.idx] = { t: newT, v: newV }
       const updated = { ...dr.currentTracks, [dr.key]: track }
       dr.currentTracks = updated
       onChangeTracks(updated)
+
+      // tooltip position — follow cursor
+      if (mountedRef.current) {
+        setTooltip({ key: dr.key, idx: dr.idx, x: ev.clientX, y: ev.clientY - 28 })
+      }
     }
 
     function onUp() {
       const dr = dragRef.current
       if (!dr) return
-      const currentT = (dr.currentTracks[dr.key] ?? [])[dr.idx]?.t ?? 0
+
+      // Sort track by time after drag ends
       const rawTrack = [...(dr.currentTracks[dr.key] ?? [])]
+      const dragged = rawTrack[dr.idx]
       const sortedTrack = rawTrack.slice().sort((a, b) => a.t - b.t)
-      const newIdx = sortedTrack.findIndex(k => k === rawTrack[dr.idx])
+      const newIdx = sortedTrack.indexOf(dragged)
       const sorted = { ...dr.currentTracks, [dr.key]: sortedTrack }
+
       dragRef.current = null
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+
       if (!mountedRef.current) return
       onChangeTracks(sorted)
       setSelected({ key: dr.key, idx: newIdx >= 0 ? newIdx : 0 })
-      void currentT
+      setTooltip(null)
     }
 
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
 
-  function handleValueChange(key: keyof KeyframeMap, idx: number, v: number) {
-    const track = [...(tracks[key] ?? [])]
-    if (!track[idx]) return
-    track[idx] = { ...track[idx], v }
-    onChangeTracks({ ...tracks, [key]: track })
+  // ── Duration handle drag ───────────────────────────────────────────
+
+  function handleDurationMouseDown(e: React.MouseEvent) {
+    e.stopPropagation()
+    e.preventDefault()
+    const startX = e.clientX
+    const startDur = duration
+    const rect = getTrackRect()
+    const trackW = rect ? rect.width - LABEL_W - HANDLE_W : 200
+
+    function onMove(ev: MouseEvent) {
+      if (!mountedRef.current) return
+      const dx = ev.clientX - startX
+      const newDur = Math.max(0.1, Math.min(30, startDur + (dx / trackW) * startDur))
+      onChangeDuration(Math.round(newDur * 10) / 10)
+    }
+
+    function onUp() {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }
+
+  // ── Delete selected keyframe ───────────────────────────────────────
 
   function handleDelete(key: keyof KeyframeMap, idx: number) {
     const track = (tracks[key] ?? []).filter((_, i) => i !== idx)
@@ -165,17 +240,19 @@ export function KeyframeTimeline({
     if (selected?.key === key && selected.idx === idx) setSelected(null)
   }
 
-  const selectedKf = selected ? (tracks[selected.key] ?? [])[selected.idx] : null
-  const selectedCfg = selected ? TRACKS_CONFIG.find(c => c.key === selected.key) : null
+  // ── Tooltip content ────────────────────────────────────────────────
+
+  const tooltipKf = tooltip ? (tracks[tooltip.key] ?? [])[tooltip.idx] : null
+  const tooltipCfg = tooltip ? TRACKS_CONFIG.find(c => c.key === tooltip.key) : null
+
+  // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 relative">
       {/* Controls row */}
       <div className="flex items-end gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
-          <span style={{ fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)' }}>
-            Preset
-          </span>
+          <span className="text-[9px] tracking-[0.15em] uppercase text-white/25">Preset</span>
           <select
             value={preset}
             onChange={e => handlePresetChange(e.target.value)}
@@ -188,25 +265,7 @@ export function KeyframeTimeline({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span style={{ fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)' }}>
-            Duration
-          </span>
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              value={duration}
-              min={0.1} max={30} step={0.1}
-              onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v > 0) onChangeDuration(v) }}
-              className="w-12 bg-transparent border-b border-white/10 text-white/70 text-[11px] py-1 focus:outline-none focus:border-white/35"
-            />
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)' }}>s</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <span style={{ fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)' }}>
-            Delay
-          </span>
+          <span className="text-[9px] tracking-[0.15em] uppercase text-white/25">Delay</span>
           <div className="flex items-center gap-1">
             <input
               type="number"
@@ -215,32 +274,51 @@ export function KeyframeTimeline({
               onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) onChangeDelay(v) }}
               className="w-12 bg-transparent border-b border-white/10 text-white/70 text-[11px] py-1 focus:outline-none focus:border-white/35"
             />
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)' }}>s</span>
+            <span className="text-[9px] text-white/20">s</span>
           </div>
         </div>
 
         <div className="flex flex-col gap-1">
-          <span style={{ fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)' }}>
-            Loop
-          </span>
+          <span className="text-[9px] tracking-[0.15em] uppercase text-white/25">Loop</span>
           <button
             onClick={() => onChangeLoop(!loop)}
             style={{
               fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
               color: loop ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.25)',
-              paddingBottom: 4, borderBottom: `1px solid ${loop ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}`,
+              paddingBottom: 4,
+              borderBottom: `1px solid ${loop ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}`,
               transition: 'color 0.15s, border-color 0.15s',
             }}
           >
             {loop ? 'on' : 'off'}
           </button>
         </div>
+
+        {/* Delete selected */}
+        {selected && (
+          <button
+            onClick={() => handleDelete(selected.key, selected.idx)}
+            className="text-[9px] text-white/20 hover:text-red-400/60 transition-colors tracking-[0.08em] pb-1 border-b border-transparent hover:border-red-400/30 ml-auto"
+          >
+            × remove
+          </button>
+        )}
       </div>
 
       {/* Timeline */}
       <div ref={timelineRef} style={{ userSelect: 'none' }}>
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 2 }} />
+        {/* Header: 0s label + duration handle */}
+        <div style={{ display: 'flex', paddingLeft: LABEL_W, paddingBottom: 3 }}>
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: HANDLE_W }}>
+            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.06em' }}>0s</span>
+            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.06em' }}>{duration.toFixed(1)}s</span>
+          </div>
+        </div>
 
+        {/* Top border */}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
+
+        {/* Track rows */}
         {visibleTracks.map(cfg => {
           const track = tracks[cfg.key] ?? []
           const isSel = selected?.key === cfg.key
@@ -248,26 +326,34 @@ export function KeyframeTimeline({
           return (
             <div
               key={cfg.key}
-              style={{ display: 'flex', alignItems: 'center', height: 26, cursor: 'col-resize' }}
+              style={{ display: 'flex', alignItems: 'center', height: TRACK_H, cursor: 'crosshair' }}
               onClick={e => handleTrackClick(e, cfg.key, cfg)}
             >
-              {/* Label */}
+              {/* Property label */}
               <span style={{
                 width: LABEL_W, flexShrink: 0,
-                fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
-                color: isSel ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)',
+                fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: isSel ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.18)',
                 userSelect: 'none',
                 transition: 'color 0.1s',
               }}>
                 {cfg.label}
               </span>
 
-              {/* Track */}
+              {/* Track bar */}
               <div style={{ flex: 1, position: 'relative', height: '100%', overflow: 'visible' }}>
+                {/* Track background fill */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: isSel ? 'rgba(255,255,255,0.025)' : 'transparent',
+                  transition: 'background 0.1s',
+                  pointerEvents: 'none',
+                }} />
+
                 {/* Center line */}
                 <div style={{
                   position: 'absolute', top: '50%', left: 0, right: 0, height: 1,
-                  background: isSel ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)',
+                  background: isSel ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
                   pointerEvents: 'none', transition: 'background 0.1s',
                 }} />
 
@@ -278,6 +364,7 @@ export function KeyframeTimeline({
                     <div
                       key={i}
                       onMouseDown={e => handleDiamondMouseDown(e, cfg.key, i)}
+                      title={`${cfg.label}: ${cfg.fmt(kf.v)} @ ${(kf.t * duration).toFixed(2)}s\nDrag ↔ to move · Drag ↕ to scrub value`}
                       style={{
                         position: 'absolute',
                         left: `${kf.t * 100}%`,
@@ -285,7 +372,7 @@ export function KeyframeTimeline({
                         transform: 'translate(-50%, -50%) rotate(45deg)',
                         width: 7, height: 7,
                         border: `1px solid ${isKfSel ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.4)'}`,
-                        background: isKfSel ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.1)',
+                        background: isKfSel ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.12)',
                         cursor: 'grab',
                         zIndex: 2,
                         transition: 'border-color 0.1s, background 0.1s',
@@ -293,6 +380,26 @@ export function KeyframeTimeline({
                     />
                   )
                 })}
+
+                {/* Value labels on all keyframes for selected track */}
+                {isSel && track.map((kf, i) => (
+                  <span
+                    key={`label-${i}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${kf.t * 100}%`,
+                      top: '50%',
+                      transform: 'translateX(-50%) translateY(-16px)',
+                      fontSize: 8,
+                      color: selected?.idx === i ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
+                      pointerEvents: 'none',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {cfg.fmt(kf.v)}
+                  </span>
+                ))}
 
                 {/* Empty hint */}
                 {track.length === 0 && (
@@ -306,42 +413,65 @@ export function KeyframeTimeline({
                   </span>
                 )}
               </div>
+
+              {/* Duration handle — only show on first track */}
+              {cfg === visibleTracks[0] ? (
+                <div
+                  onMouseDown={handleDurationMouseDown}
+                  title="Drag to set duration"
+                  style={{
+                    width: HANDLE_W, height: '100%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'ew-resize',
+                  }}
+                >
+                  <div style={{
+                    width: 2, height: 14,
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: 1,
+                  }} />
+                </div>
+              ) : (
+                <div style={{ width: HANDLE_W, flexShrink: 0 }} />
+              )}
             </div>
           )
         })}
 
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginTop: 2 }} />
+        {/* Bottom border */}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
 
-        {/* Time axis */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: LABEL_W, paddingTop: 4 }}>
-          <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.06em' }}>0s</span>
-          <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.06em' }}>{duration.toFixed(1)}s</span>
+        {/* Hint */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 5 }}>
+          <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.12)', letterSpacing: '0.04em', fontStyle: 'italic' }}>
+            ↔ time · ↕ value · click track to add
+          </span>
+          <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.12)', letterSpacing: '0.04em' }}>
+            ⊣ drag to set duration
+          </span>
         </div>
       </div>
 
-      {/* Selected keyframe editor */}
-      {selected && selectedKf && selectedCfg && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: LABEL_W }}>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
-            ▸ {selected.key} @ {(selectedKf.t * duration).toFixed(2)}s
-          </span>
-          <input
-            type="number"
-            value={selectedKf.v}
-            step={selectedCfg.step}
-            min={selectedCfg.min}
-            max={selectedCfg.max}
-            onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) handleValueChange(selected.key, selected.idx, v) }}
-            onClick={e => e.stopPropagation()}
-            className="w-16 bg-white/[0.05] border border-white/15 text-white/80 text-[11px] px-2 py-0.5 focus:outline-none focus:border-white/35 tabular-nums"
-          />
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)' }}>{selectedCfg.fmt(selectedKf.v)}</span>
-          <button
-            onClick={e => { e.stopPropagation(); handleDelete(selected.key, selected.idx) }}
-            className="text-[9px] text-white/20 hover:text-red-400/60 transition-colors tracking-[0.08em]"
-          >
-            × remove
-          </button>
+      {/* Floating tooltip during scrub */}
+      {tooltip && tooltipKf && tooltipCfg && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.85)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            padding: '3px 8px',
+            fontSize: 10,
+            color: 'rgba(255,255,255,0.8)',
+            letterSpacing: '0.06em',
+            pointerEvents: 'none',
+            zIndex: 9999,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {tooltipCfg.label} {tooltipCfg.fmt(tooltipKf.v)} @ {(tooltipKf.t * duration).toFixed(2)}s
         </div>
       )}
     </div>
