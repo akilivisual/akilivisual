@@ -1375,7 +1375,7 @@ function ActorEditor({
                       value={(vs.font_family as string) ?? 'inherit'}
                       options={[
                         'inherit',
-                        'Inter', 'Syne', 'Space Grotesk', 'DM Sans', 'Outfit',
+                        'Inter', 'Syne', 'Space Grotesk', 'DM Sans', 'Outfit', 'Poppins', 'Montserrat',
                         'Playfair Display', 'Cormorant Garamond', 'DM Serif Display',
                         'Bebas Neue', 'Rajdhani',
                         'Space Mono', 'JetBrains Mono',
@@ -2124,19 +2124,41 @@ function Select({ value, options, onChange }: { value: string; options: SelectOp
 }
 
 function ColorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [text, setText] = useState(value.replace(/^#/, ''))
+
+  useEffect(() => {
+    setText(value.replace(/^#/, ''))
+  }, [value])
+
+  function handleTextChange(raw: string) {
+    setText(raw)
+    const full = `#${raw}`
+    if (/^#[0-9a-fA-F]{6}$/.test(full) || /^#[0-9a-fA-F]{3}$/.test(full)) {
+      onChange(full)
+    }
+  }
+
+  function handleColorPickerChange(v: string) {
+    onChange(v)
+    setText(v.replace(/^#/, ''))
+  }
+
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       <input
         type="color"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-7 h-7 rounded-none border border-white/10 bg-transparent cursor-pointer"
+        onChange={(e) => handleColorPickerChange(e.target.value)}
+        className="w-7 h-7 rounded-none border border-white/10 bg-transparent cursor-pointer shrink-0"
       />
+      <span className="text-white/25 text-xs font-mono shrink-0">#</span>
       <input
         type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex-1 bg-transparent border-b border-white/10 text-white/60 text-sm py-1.5 focus:outline-none focus:border-white/35 font-mono transition-colors"
+        value={text}
+        maxLength={6}
+        placeholder="rrggbb"
+        onChange={(e) => handleTextChange(e.target.value.replace(/[^0-9a-fA-F]/g, ''))}
+        className="flex-1 bg-transparent border-b border-white/10 text-white/70 text-xs py-1.5 focus:outline-none focus:border-white/35 font-mono tracking-widest transition-colors"
       />
     </div>
   )
