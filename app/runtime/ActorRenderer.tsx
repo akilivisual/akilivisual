@@ -164,21 +164,23 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
     </motion.div>
   ) : entrance
 
-  // Module ambient loop — runs after entrance settles, skipped if actor already pulses
-  const hasAmbient = !!(moduleMotion?.loop) && preset !== 'pulse'
+  // Module motion — keyframes animate once (or loop when loop:true); plain pulse requires loop:true
+  const mkf = (moduleMotion?.keyframes ?? {}) as Record<string, KeyframePoint[]>
+  const hasMKF = Object.values(mkf).some(t => Array.isArray(t) && t.length >= 2)
+  const loopOn = !!(moduleMotion?.loop)
   const ambientEasing = (moduleMotion?.easing_type as string) ?? 'easeInOut'
   const speed = (moduleMotion?.pulse_speed as number) ?? 1
+  const ambientDur = ((moduleMotion?.duration as number) ?? 3) / Math.max(speed, 0.1)
+  // keyframe animations use their own delay; pulse waits for actor entrance to finish
+  const ambientDelay = hasMKF
+    ? ((moduleMotion?.delay as number) ?? 0)
+    : duration + delay + ((moduleMotion?.delay as number) ?? 0)
+
+  const hasAmbient = (hasMKF || loopOn) && preset !== 'pulse'
 
   if (!hasAmbient) {
     return <div ref={containerRef} style={outerStyle}>{withMagnetic}</div>
   }
-
-  const ambientDelay = duration + delay + ((moduleMotion?.delay as number) ?? 0)
-  const ambientDur = ((moduleMotion?.duration as number) ?? 3) / Math.max(speed, 0.1)
-
-  // Module keyframes take precedence over min/max sliders when present
-  const mkf = (moduleMotion?.keyframes ?? {}) as Record<string, KeyframePoint[]>
-  const hasMKF = Object.values(mkf).some(t => Array.isArray(t) && t.length >= 2)
 
   const ambientAnimate = hasMKF
     ? {
@@ -187,14 +189,17 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
       }
     : { opacity: [0.7, 1, 0.7] }
 
-  const ambientBase = { duration: ambientDur, delay: ambientDelay, repeat: Infinity, ease: ambientEasing, repeatType: 'loop' as const }
+  const ambientBase = {
+    duration: ambientDur, delay: ambientDelay, ease: ambientEasing,
+    ...(loopOn ? { repeat: Infinity, repeatType: 'loop' as const } : {}),
+  }
   const ambientTransition = hasMKF
     ? {
         ...ambientBase,
         ...(mkf.opacity ? { opacity: { ...ambientBase, times: mkf.opacity.map(k => k.t) } } : {}),
         ...(mkf.scale   ? { scale:   { ...ambientBase, times: mkf.scale.map(k => k.t)   } } : {}),
       }
-    : ambientBase
+    : { ...ambientBase, repeat: Infinity, repeatType: 'loop' as const }
 
   return (
     <motion.div
