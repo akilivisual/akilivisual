@@ -271,6 +271,11 @@ function DraggablePlacement({
               <span className="shrink-0 text-[10px] tracking-[0.15em] uppercase text-white/25 border border-white/10 px-2 py-0.5">
                 {mod.module_type}
               </span>
+              {((placement.overrides ?? {}) as Record<string, unknown>).context === 'tray' && (
+                <span className="shrink-0 text-[9px] tracking-[0.1em] uppercase text-white/30 border border-white/[0.12] px-1.5 py-0.5">
+                  tray
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-white/20 mt-0.5 tracking-[0.1em]">
               {index === 0 ? 'background' : `layer ${index + 1}`} · {mod.actors.length} {mod.actors.length === 1 ? 'actor' : 'actors'}

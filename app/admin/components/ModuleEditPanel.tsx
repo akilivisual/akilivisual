@@ -84,6 +84,7 @@ export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved,
         updatePlacement(placement.id, {
           position: (placement.position ?? {}) as Record<string, unknown>,
           depth_layer: placement.depth_layer,
+          overrides: (placement.overrides ?? {}) as Record<string, unknown>,
         }),
       ])
       if (modResult.ok && placeResult.ok) {
@@ -394,6 +395,23 @@ function LayoutTab({
           />
         </Field>
       </div>
+
+      <Divider label="Canvas Context" />
+      <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Move this module into the right tray instead of rendering it on the canvas surface.</p>
+      <Field label="Show in right tray">
+        <Toggle
+          value={((placement.overrides ?? {}) as Record<string, unknown>).context === 'tray'}
+          onChange={(v) => {
+            const overrides = { ...((placement.overrides ?? {}) as Record<string, unknown>) }
+            if (v) {
+              overrides.context = 'tray'
+            } else {
+              delete overrides.context
+            }
+            onPlacementChange({ ...placement, overrides })
+          }}
+        />
+      </Field>
 
     </div>
   )

@@ -5,6 +5,8 @@ import { fetchAllCanvases } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
 import { PointerProvider } from './context/PointerContext'
 import { NavigationProvider } from './context/NavigationContext'
+import { LeftTray } from './components/LeftTray'
+import { RightTray } from './components/RightTray'
 import type { CanvasWithPlacements } from '@/lib/schema/types'
 
 export function StageCarousel() {
@@ -51,9 +53,17 @@ export function StageCarousel() {
     )
   }
 
+  const activeCanvas = canvases[activeIndex] ?? null
+  const trayPlacements = (activeCanvas?.placements ?? []).filter(
+    p => ((p.overrides ?? {}) as Record<string, unknown>).context === 'tray'
+  )
+
   return (
     <NavigationProvider canvases={canvases} sectionRefs={sectionRefs}>
       <>
+        <LeftTray canvases={canvases} activeIndex={activeIndex} />
+        <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} />
+
         {/* Scroll container */}
         <div className="h-screen overflow-y-scroll snap-y snap-mandatory">
           {canvases.map((canvas, i) => (

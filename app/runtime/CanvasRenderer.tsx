@@ -27,7 +27,10 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           ease: transition?.easing ?? 'easeInOut',
         }}
       >
-        {[...canvas.placements].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((placement, sortedIndex) => {
+        {[...canvas.placements]
+          .filter(p => ((p.overrides ?? {}) as Record<string, unknown>).context !== 'tray')
+          .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+          .map((placement, sortedIndex) => {
           const pos = (placement.position ?? {}) as Record<string, unknown>
           const mx = (pos.x as number) ?? 0
           const my = (pos.y as number) ?? 0
