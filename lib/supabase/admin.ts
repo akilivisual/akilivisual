@@ -1,5 +1,5 @@
 import { getAdminSupabase as getSupabase } from './admin-client'
-import type { Canvas, Module, Actor, Persona, MediaAsset, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
+import type { Album, AlbumWithStates, Canvas, Module, Actor, Persona, MediaAsset, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
 
 async function fetchPlacements(supabase: ReturnType<typeof getSupabase>, canvasId: string): Promise<PlacementWithModule[]> {
   const { data: placements } = await supabase
@@ -97,4 +97,22 @@ export async function adminFetchAllMedia(): Promise<MediaAsset[]> {
   const supabase = getSupabase()
   const { data } = await supabase.from('media_assets').select('*').order('created_at')
   return (data ?? []) as MediaAsset[]
+}
+
+export async function adminFetchAllAlbums(): Promise<Album[]> {
+  const supabase = getSupabase()
+  const { data } = await supabase.from('albums').select('*').order('order_index')
+  return (data ?? []) as Album[]
+}
+
+export async function adminFetchAlbumWithStates(slug: string): Promise<AlbumWithStates | null> {
+  const supabase = getSupabase()
+  const { data: album } = await supabase.from('albums').select('*').eq('slug', slug).single()
+  if (!album) return null
+  const { data: states } = await supabase
+    .from('canvases')
+    .select('*')
+    .eq('album_id', album.id)
+    .order('order_index')
+  return { ...(album as Album), states: (states ?? []) as Canvas[] }
 }

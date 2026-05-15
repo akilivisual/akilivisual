@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 
 const NAV = [
   { label: 'States', href: '/admin' },
+  { label: 'Albums', href: '/admin/albums' },
   { label: 'Personas', href: '/admin/personas' },
   { label: 'Media', href: '/admin/media' },
   { label: 'Motion', href: '/admin/motion' },

@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence } from 'framer-motion'
-import type { CanvasWithPlacements, PlacementWithModule } from '@/lib/schema/types'
+import type { Album, CanvasWithPlacements, PlacementWithModule } from '@/lib/schema/types'
+import { LENS_OPTIONS } from '@/lib/schema/types'
 import { updatePlacement, deletePlacement } from '@/app/admin/actions/modules'
+import { assignStateToAlbum, updateCanvasLenses } from '@/app/admin/actions/albums'
 import { PlacementList } from './PlacementList'
 import { CanvasEditor } from './CanvasEditor'
 import { ModuleEditPanel } from './ModuleEditPanel'
@@ -12,14 +14,17 @@ import { DeleteCanvasButton } from './DeleteCanvasButton'
 
 interface CanvasStudioProps {
   canvas: CanvasWithPlacements
+  albums?: Album[]
 }
 
 type Mode = 'edit' | 'preview'
 
-export function CanvasStudio({ canvas }: CanvasStudioProps) {
+export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
   const [placements, setPlacements] = useState(canvas.placements)
   const [refreshKey, setRefreshKey] = useState(0)
   const [editing, setEditing] = useState<PlacementWithModule | null>(null)
+  const [albumId, setAlbumId] = useState<string>(canvas.album_id ?? '')
+  const [lenses, setLenses] = useState<string[]>(canvas.lenses ?? [])
   const [mode, setMode] = useState<Mode>('edit')
   const [viewport, setViewport] = useState<'landscape' | 'portrait'>('landscape')
 
@@ -95,6 +100,54 @@ export function CanvasStudio({ canvas }: CanvasStudioProps) {
               <p className="text-sm font-light text-white">{s.value}</p>
             </div>
           ))}
+        </div>
+
+        {/* Album + Lenses */}
+        <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-4">
+          {albums.length > 0 && (
+            <div className="flex items-center gap-4">
+              <span className="text-[9px] tracking-[0.2em] uppercase text-white/25 w-14 shrink-0">Album</span>
+              <select
+                value={albumId}
+                onChange={async e => {
+                  const val = e.target.value
+                  setAlbumId(val)
+                  await assignStateToAlbum(canvas.id, val || null)
+                }}
+                className="flex-1 bg-transparent border-b border-white/10 text-white/60 text-[11px] py-1 focus:outline-none focus:border-white/30"
+              >
+                <option value="">Unassigned</option>
+                {albums.map(a => (
+                  <option key={a.id} value={a.id}>{a.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex items-start gap-4">
+            <span className="text-[9px] tracking-[0.2em] uppercase text-white/25 w-14 shrink-0 pt-0.5">Lenses</span>
+            <div className="flex flex-wrap gap-1.5">
+              {LENS_OPTIONS.map(lens => {
+                const active = lenses.includes(lens)
+                return (
+                  <button
+                    key={lens}
+                    onClick={async () => {
+                      const next = active ? lenses.filter(l => l !== lens) : [...lenses, lens]
+                      setLenses(next)
+                      await updateCanvasLenses(canvas.id, next)
+                    }}
+                    className={`text-[9px] tracking-[0.15em] uppercase px-2 py-1 border transition-colors ${
+                      active
+                        ? 'border-white/35 text-white/70 bg-white/[0.05]'
+                        : 'border-white/10 text-white/25 hover:border-white/20 hover:text-white/40'
+                    }`}
+                  >
+                    {lens}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Placement list */}

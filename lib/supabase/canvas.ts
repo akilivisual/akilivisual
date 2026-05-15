@@ -1,5 +1,5 @@
 import { getSupabase } from './client'
-import type { Canvas, Module, Actor, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
+import type { Album, Canvas, Module, Actor, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
 
 async function fetchPlacements(supabase: ReturnType<typeof getSupabase>, canvasId: string): Promise<PlacementWithModule[]> {
   const { data: placements } = await supabase
@@ -63,6 +63,12 @@ export async function fetchAllCanvases(): Promise<CanvasWithPlacements[]> {
       return { ...canvas, placements }
     })
   )
+}
+
+export async function fetchAllAlbums(): Promise<Album[]> {
+  const supabase = getSupabase()
+  const { data } = await supabase.from('albums').select('*').order('order_index')
+  return (data ?? []) as Album[]
 }
 
 export async function fetchCanvasesByProject(projectSlug: string): Promise<CanvasWithPlacements[]> {

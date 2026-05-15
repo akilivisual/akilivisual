@@ -15,6 +15,8 @@ export interface Project {
 export interface Canvas {
   id: string
   project_id: string | null
+  album_id: string | null
+  lenses: string[]
   title: string
   slug: string
   canvas_type: string
@@ -25,6 +27,26 @@ export interface Canvas {
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
+}
+
+export const LENS_OPTIONS = ['art', 'cinema', 'politics', 'history', 'culture', 'science'] as const
+export type Lens = typeof LENS_OPTIONS[number]
+
+export interface Album {
+  id: string
+  title: string
+  slug: string
+  description: string | null
+  theme: string | null
+  status: string
+  order_index: number
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AlbumWithStates extends Album {
+  states: Canvas[]
 }
 
 // Modules are global prefabs — not scoped to any canvas.
@@ -296,6 +318,7 @@ export type Database = {
   public: {
     Tables: {
       projects: { Row: Project; Insert: Omit<Project, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Project> }
+      albums: { Row: Album; Insert: Omit<Album, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Album> }
       canvases: { Row: Canvas; Insert: Omit<Canvas, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Canvas> }
       modules: { Row: Module; Insert: Omit<Module, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Module> }
       canvas_placements: { Row: CanvasPlacement; Insert: Omit<CanvasPlacement, 'id' | 'created_at' | 'updated_at'>; Update: Partial<CanvasPlacement> }
