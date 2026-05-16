@@ -75,16 +75,20 @@ export function RightTray({ activeCanvas, trayPlacements, albums, canvases }: Ri
           >
             {/* Header */}
             <div className="px-7 pt-9 pb-6 shrink-0 border-b border-white/[0.05] flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1.5 min-w-0">
-                {activeCanvas && (
-                  <p className="text-[9px] tracking-[0.3em] uppercase text-white/20">
-                    {activeCanvas.canvas_type}
+              {tab === 'modules' ? (
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  {activeCanvas && (
+                    <p className="text-[9px] tracking-[0.3em] uppercase text-white/20">
+                      {activeCanvas.canvas_type}
+                    </p>
+                  )}
+                  <p className="text-sm font-light tracking-wide text-white/70 truncate">
+                    {activeCanvas?.title ?? ''}
                   </p>
-                )}
-                <p className="text-sm font-light tracking-wide text-white/70 truncate">
-                  {activeCanvas?.title ?? ''}
-                </p>
-              </div>
+                </div>
+              ) : (
+                <div />
+              )}
 
               {hasAlbum && (
                 <button
