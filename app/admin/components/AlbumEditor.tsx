@@ -243,29 +243,20 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
       {/* Tracks */}
       <section>
         <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-5">Tracks</p>
-        <div className="flex flex-col gap-2 mb-4">
+        <div className="flex flex-col gap-4 mb-4">
           {tracks.map((track, i) => (
-            <div key={i} className="flex items-center gap-2 group">
-              <input
-                value={track.title}
-                onChange={e => updateTrack(i, 'title', e.target.value)}
-                placeholder="Title"
-                className="flex-1 bg-transparent border-b border-white/10 text-white/70 text-[11px] py-1.5 focus:outline-none focus:border-white/30 placeholder:text-white/15 tracking-wide"
-              />
-              <input
-                value={track.url}
-                onChange={e => updateTrack(i, 'url', e.target.value)}
-                placeholder="Audio URL"
-                className="flex-[2] bg-transparent border-b border-white/10 text-white/40 text-[10px] py-1.5 focus:outline-none focus:border-white/25 placeholder:text-white/15 font-mono"
-              />
-              <button
-                type="button"
-                onClick={() => removeTrack(i)}
-                className="text-[10px] text-white/15 hover:text-red-400/50 transition-colors shrink-0"
-              >
-                ×
-              </button>
-            </div>
+            <TrackRow
+              key={i}
+              track={track}
+              albumMetadata={album.metadata}
+              onUpdate={(field, value) => updateTrack(i, field, value)}
+              onRemove={() => removeTrack(i)}
+              onSave={(updated) => {
+                const next = tracks.map((t, idx) => idx === i ? { ...t, ...updated } : t)
+                setTracks(next)
+                saveTracks(next)
+              }}
+            />
           ))}
           {tracks.length === 0 && (
             <p className="text-[11px] text-white/20 italic">No tracks yet</p>
@@ -336,6 +327,133 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+function TrackRow({
+  track,
+  albumMetadata,
+  onUpdate,
+  onRemove,
+  onSave,
+}: {
+  track: { title: string; url: string }
+  albumMetadata: Record<string, unknown>
+  onUpdate: (field: 'title' | 'url', value: string) => void
+  onRemove: () => void
+  onSave: (partial: { url: string }) => void
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [showLibrary, setShowLibrary] = useState(false)
+  const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function openLibrary() {
+    setShowLibrary(true)
+    const assets = await listMediaAssets()
+    setLibraryAssets(assets.filter(a => a.asset_type === 'audio'))
+  }
+
+  async function handleUpload(file: File) {
+    setUploading(true)
+    try {
+      const supabase = getSupabase()
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (error) return
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
+      await createMediaAsset(publicUrl, 'audio', file.name.replace(/\.[^.]+$/, ''), path)
+      onSave({ url: publicUrl })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const filename = track.url ? track.url.split('/').pop()?.split('?')[0] ?? track.url : ''
+
+  return (
+    <div className="flex flex-col gap-2 border-b border-white/[0.05] pb-4">
+      <div className="flex items-center gap-2">
+        <input
+          value={track.title}
+          onChange={e => onUpdate('title', e.target.value)}
+          placeholder="Track title"
+          className="flex-1 bg-transparent border-b border-white/10 text-white/70 text-[11px] py-1.5 focus:outline-none focus:border-white/30 placeholder:text-white/15 tracking-wide"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-[10px] text-white/15 hover:text-red-400/50 transition-colors shrink-0"
+        >
+          ×
+        </button>
+      </div>
+
+      {track.url ? (
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-white/25 font-mono truncate flex-1">{filename}</span>
+          <button
+            type="button"
+            onClick={() => onSave({ url: '' })}
+            className="text-[9px] text-white/20 hover:text-white/50 transition-colors shrink-0"
+          >
+            clear
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 disabled:text-white/15 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5"
+          >
+            {uploading ? 'Uploading…' : 'Upload'}
+          </button>
+          <button
+            type="button"
+            onClick={openLibrary}
+            className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5"
+          >
+            Library
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="audio/*"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+          />
+        </div>
+      )}
+
+      {showLibrary && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] text-white/20 tracking-[0.1em] uppercase">Choose audio</span>
+            <button type="button" onClick={() => setShowLibrary(false)} className="text-[9px] text-white/20 hover:text-white/50">close</button>
+          </div>
+          {libraryAssets.length === 0 ? (
+            <p className="text-[9px] text-white/15 italic">No audio in library</p>
+          ) : (
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+              {libraryAssets.map(a => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => { onSave({ url: a.url }); setShowLibrary(false) }}
+                  className="flex items-center gap-2 px-2 py-1.5 text-left border border-white/08 hover:border-white/20 transition-colors"
+                >
+                  <span className="text-[9px] text-white/20">♩</span>
+                  <span className="text-[10px] text-white/50 hover:text-white/75 transition-colors truncate">{a.title ?? a.url.split('/').pop()}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
