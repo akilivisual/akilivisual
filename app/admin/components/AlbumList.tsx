@@ -27,9 +27,9 @@ export function AlbumList({ initialAlbums }: AlbumListProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {albums.length === 0 && !creating ? (
-        <div className="border border-dashed border-white/10 rounded px-8 py-12 flex flex-col items-center gap-4">
+        <div className="border border-dashed border-white/10 px-8 py-12 flex flex-col items-center gap-4">
           <p className="text-white/25 text-sm tracking-wide">No albums yet</p>
           <button
             onClick={() => setCreating(true)}
@@ -40,9 +40,15 @@ export function AlbumList({ initialAlbums }: AlbumListProps) {
         </div>
       ) : (
         <>
-          <Reorder.Group axis="y" values={albums} onReorder={handleReorder} className="flex flex-col gap-2">
+          <Reorder.Group
+            axis="y"
+            values={albums}
+            onReorder={handleReorder}
+            className="grid grid-cols-3 gap-4"
+            style={{ listStyle: 'none', padding: 0, margin: 0 }}
+          >
             {albums.map(album => (
-              <AlbumRow key={album.id} album={album} onDelete={handleDelete} />
+              <AlbumCard key={album.id} album={album} onDelete={handleDelete} />
             ))}
           </Reorder.Group>
           <button
@@ -61,11 +67,12 @@ export function AlbumList({ initialAlbums }: AlbumListProps) {
   )
 }
 
-function AlbumRow({ album, onDelete }: { album: Album; onDelete: (id: string) => void }) {
+function AlbumCard({ album, onDelete }: { album: Album; onDelete: (id: string) => void }) {
   const controls = useDragControls()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const coverUrl = album.metadata?.cover_url as string | undefined
 
   useEffect(() => {
     if (!menuOpen) return
@@ -84,74 +91,83 @@ function AlbumRow({ album, onDelete }: { album: Album; onDelete: (id: string) =>
       value={album}
       dragListener={false}
       dragControls={controls}
-      whileDrag={{ scale: 1.01, opacity: 0.85 }}
-      className="flex items-center gap-3 px-4 py-3 bg-white/[0.025] border border-white/[0.06] hover:border-white/10 transition-colors group"
+      whileDrag={{ scale: 1.02, opacity: 0.9 }}
+      className="flex flex-col group cursor-default"
+      style={{ listStyle: 'none' }}
     >
-      {/* Drag handle */}
-      <div
-        className="flex flex-col gap-[3px] cursor-grab shrink-0 opacity-20 group-hover:opacity-40 transition-opacity"
-        onPointerDown={e => controls.start(e)}
-      >
-        {[0,1,2].map(i => <div key={i} className="w-3 h-px bg-white" />)}
-      </div>
-
-      {/* Cover art thumbnail */}
-      {(album.metadata?.cover_url as string | undefined) ? (
-        <img
-          src={album.metadata.cover_url as string}
-          alt=""
-          className="w-[200px] shrink-0 object-cover border border-white/10"
-          style={{ aspectRatio: '16/9' }}
-        />
-      ) : (
-        <div className="w-[200px] shrink-0 border border-dashed border-white/08" style={{ aspectRatio: '16/9' }} />
-      )}
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-3">
-          <span className="text-sm font-light text-white/80 tracking-wide truncate">{album.title}</span>
-          {album.theme && (
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 shrink-0">{album.theme}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Status badge */}
-      <span className={`text-[9px] tracking-[0.15em] uppercase shrink-0 ${album.status === 'live' ? 'text-white/50' : 'text-white/20'}`}>
-        {album.status}
-      </span>
-
-      {/* Actions */}
-      <div className="relative shrink-0" ref={menuRef}>
-        <button
-          onClick={() => { setMenuOpen(v => !v); setConfirmDelete(false) }}
-          className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/60 transition-colors"
-        >
-          ···
-        </button>
-        {menuOpen && (
-          <div className="absolute right-0 top-full mt-1 z-50 min-w-[120px] bg-[#111] border border-white/10 flex flex-col py-1">
-            <Link
-              href={`/admin/albums/${album.slug}`}
-              className="px-4 py-2 text-[11px] text-white/60 hover:text-white/90 hover:bg-white/[0.04] transition-colors tracking-wide"
-              onClick={() => setMenuOpen(false)}
-            >
-              Edit
-            </Link>
-            <div className="h-px bg-white/[0.06] my-1" />
-            <button
-              onClick={() => {
-                if (!confirmDelete) { setConfirmDelete(true); return }
-                setMenuOpen(false)
-                onDelete(album.id)
-              }}
-              className="px-4 py-2 text-[11px] text-left transition-colors tracking-wide text-red-400/60 hover:text-red-400"
-            >
-              {confirmDelete ? 'Sure?' : 'Delete'}
-            </button>
+      {/* Square cover art */}
+      <div className="relative w-full" style={{ aspectRatio: '1/1' }}>
+        {coverUrl ? (
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-white/[0.03] border border-dashed border-white/10 flex items-center justify-center">
+            <span className="text-[9px] text-white/15 italic tracking-wide">no cover</span>
           </div>
         )}
+
+        {/* Drag handle — top-left overlay */}
+        <div
+          className="absolute top-2 left-2 flex flex-col gap-[3px] cursor-grab p-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40"
+          onPointerDown={e => controls.start(e)}
+        >
+          {[0,1,2].map(i => <div key={i} className="w-3 h-px bg-white/60" />)}
+        </div>
+
+        {/* Status badge — top-right */}
+        <span className={`absolute top-2 right-2 text-[8px] tracking-[0.15em] uppercase px-1.5 py-0.5 ${
+          album.status === 'live'
+            ? 'bg-black/50 text-white/60'
+            : 'bg-black/40 text-white/25'
+        }`}>
+          {album.status}
+        </span>
+      </div>
+
+      {/* Info + actions */}
+      <div className="flex items-start justify-between gap-2 pt-2.5 pb-1">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <Link
+            href={`/admin/albums/${album.slug}`}
+            className="text-[13px] font-light text-white/75 hover:text-white/95 tracking-wide truncate transition-colors leading-tight"
+          >
+            {album.title}
+          </Link>
+          {album.theme && (
+            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 truncate">{album.theme}</span>
+          )}
+        </div>
+
+        {/* Menu */}
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            onClick={() => { setMenuOpen(v => !v); setConfirmDelete(false) }}
+            className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-white/60 transition-colors"
+          >
+            ···
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 z-50 min-w-[120px] bg-[#111] border border-white/10 flex flex-col py-1">
+              <Link
+                href={`/admin/albums/${album.slug}`}
+                className="px-4 py-2 text-[11px] text-white/60 hover:text-white/90 hover:bg-white/[0.04] transition-colors tracking-wide"
+                onClick={() => setMenuOpen(false)}
+              >
+                Edit
+              </Link>
+              <div className="h-px bg-white/[0.06] my-1" />
+              <button
+                onClick={() => {
+                  if (!confirmDelete) { setConfirmDelete(true); return }
+                  setMenuOpen(false)
+                  onDelete(album.id)
+                }}
+                className="px-4 py-2 text-[11px] text-left transition-colors tracking-wide text-red-400/60 hover:text-red-400"
+              >
+                {confirmDelete ? 'Sure?' : 'Delete'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </Reorder.Item>
   )
@@ -178,7 +194,6 @@ function NewAlbumForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
       setError(result?.error ?? 'Failed')
       setSaving(false)
     }
-    // redirect happens server-side on success
   }
 
   return (
