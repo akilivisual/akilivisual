@@ -189,8 +189,8 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
         <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-3">
           <span className="text-[9px] tracking-[0.2em] uppercase text-white/25">Thumbnail</span>
           {thumbnail ? (
-            <div className="relative group">
-              <img src={thumbnail} alt="" className="w-full h-28 object-cover border border-white/10" />
+            <div className="relative group w-full" style={{ aspectRatio: '16/9' }}>
+              <img src={thumbnail} alt="" className="w-full h-full object-cover border border-white/10" />
               <button
                 onClick={() => saveThumbnail('')}
                 className="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center bg-black/60 text-white/40 hover:text-white/80 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
@@ -199,7 +199,7 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
               </button>
             </div>
           ) : (
-            <div className="w-full h-20 border border-dashed border-white/10 flex items-center justify-center">
+            <div className="w-full border border-dashed border-white/10 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
               <span className="text-[9px] text-white/15 italic">no thumbnail</span>
             </div>
           )}
