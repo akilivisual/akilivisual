@@ -100,10 +100,11 @@ function AlbumRow({ album, onDelete }: { album: Album; onDelete: (id: string) =>
         <img
           src={album.metadata.cover_url as string}
           alt=""
-          className="w-10 h-7 object-cover border border-white/10 shrink-0"
+          className="w-[200px] shrink-0 object-cover border border-white/10"
+          style={{ aspectRatio: '16/9' }}
         />
       ) : (
-        <div className="w-10 h-7 border border-dashed border-white/08 shrink-0" />
+        <div className="w-[200px] shrink-0 border border-dashed border-white/08" style={{ aspectRatio: '16/9' }} />
       )}
 
       {/* Info */}

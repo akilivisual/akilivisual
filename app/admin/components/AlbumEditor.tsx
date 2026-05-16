@@ -155,8 +155,8 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
         <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-5">Cover Art</p>
         <div className="flex flex-col gap-3">
           {coverUrl ? (
-            <div className="relative group">
-              <img src={coverUrl} alt="" className="w-full h-40 object-cover border border-white/10" />
+            <div className="relative group w-full" style={{ aspectRatio: '16/9' }}>
+              <img src={coverUrl} alt="" className="w-full h-full object-cover border border-white/10" />
               <button
                 onClick={() => saveCover('')}
                 className="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center bg-black/60 text-white/40 hover:text-white/80 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
@@ -165,7 +165,7 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
               </button>
             </div>
           ) : (
-            <div className="w-full h-28 border border-dashed border-white/10 flex items-center justify-center">
+            <div className="w-full border border-dashed border-white/10 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
               <span className="text-[9px] text-white/15 italic">no cover art</span>
             </div>
           )}
