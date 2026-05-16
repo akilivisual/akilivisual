@@ -96,7 +96,7 @@ function AlbumCard({ album, onDelete }: { album: Album; onDelete: (id: string) =
       style={{ listStyle: 'none' }}
     >
       {/* Square cover art */}
-      <div className="relative w-full" style={{ aspectRatio: '1/1' }}>
+      <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
         {coverUrl ? (
           <img src={coverUrl} alt="" className="w-full h-full object-cover" />
         ) : (
