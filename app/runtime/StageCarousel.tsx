@@ -94,7 +94,7 @@ function StageCarouselInner() {
     <NavigationProvider canvases={visible} sectionRefs={sectionRefs}>
       <RightTrayProvider>
         <LeftTray canvases={visible} albums={albums} activeIndex={safeIndex} />
-        <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} />
+        <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} albums={albums} canvases={canvases} />
 
         {/* Scroll container */}
         <div className="h-screen overflow-y-scroll snap-y snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
