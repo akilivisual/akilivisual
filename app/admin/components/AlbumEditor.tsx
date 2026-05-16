@@ -31,6 +31,32 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  type Track = { title: string; url: string }
+  const [tracks, setTracks] = useState<Track[]>(
+    ((album.metadata?.tracks as Track[] | undefined) ?? []).map(t => ({ title: t.title ?? '', url: t.url ?? '' }))
+  )
+  const [savingTracks, setSavingTracks] = useState(false)
+
+  async function saveTracks(updated: Track[]) {
+    setSavingTracks(true)
+    await updateAlbumMetadata(album.id, { ...album.metadata, tracks: updated })
+    setSavingTracks(false)
+  }
+
+  function addTrack() {
+    setTracks(prev => [...prev, { title: '', url: '' }])
+  }
+
+  function updateTrack(i: number, field: 'title' | 'url', value: string) {
+    setTracks(prev => prev.map((t, idx) => idx === i ? { ...t, [field]: value } : t))
+  }
+
+  function removeTrack(i: number) {
+    const updated = tracks.filter((_, idx) => idx !== i)
+    setTracks(updated)
+    saveTracks(updated)
+  }
+
   async function saveCover(url: string) {
     setCoverUrl(url)
     await updateAlbumMetadata(album.id, { ...album.metadata, cover_url: url || undefined })
@@ -210,6 +236,58 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
                 </div>
               )}
             </div>
+          )}
+        </div>
+      </section>
+
+      {/* Tracks */}
+      <section>
+        <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-5">Tracks</p>
+        <div className="flex flex-col gap-2 mb-4">
+          {tracks.map((track, i) => (
+            <div key={i} className="flex items-center gap-2 group">
+              <input
+                value={track.title}
+                onChange={e => updateTrack(i, 'title', e.target.value)}
+                placeholder="Title"
+                className="flex-1 bg-transparent border-b border-white/10 text-white/70 text-[11px] py-1.5 focus:outline-none focus:border-white/30 placeholder:text-white/15 tracking-wide"
+              />
+              <input
+                value={track.url}
+                onChange={e => updateTrack(i, 'url', e.target.value)}
+                placeholder="Audio URL"
+                className="flex-[2] bg-transparent border-b border-white/10 text-white/40 text-[10px] py-1.5 focus:outline-none focus:border-white/25 placeholder:text-white/15 font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => removeTrack(i)}
+                className="text-[10px] text-white/15 hover:text-red-400/50 transition-colors shrink-0"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {tracks.length === 0 && (
+            <p className="text-[11px] text-white/20 italic">No tracks yet</p>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={addTrack}
+            className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors"
+          >
+            + Add Track
+          </button>
+          {tracks.length > 0 && (
+            <button
+              type="button"
+              disabled={savingTracks}
+              onClick={() => saveTracks(tracks)}
+              className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 disabled:text-white/15 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5"
+            >
+              {savingTracks ? 'Saving…' : 'Save Tracks'}
+            </button>
           )}
         </div>
       </section>

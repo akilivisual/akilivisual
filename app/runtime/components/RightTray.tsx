@@ -147,6 +147,14 @@ function DetailsPanel({
 }) {
   return (
     <div className="flex flex-col">
+      {/* Title above cover art */}
+      <div className="px-7 pt-5 pb-4 flex flex-col gap-1">
+        {album.theme && (
+          <p className="text-[9px] tracking-[0.25em] uppercase text-white/25">{album.theme}</p>
+        )}
+        <p className="text-[15px] font-light tracking-wide text-white/85">{album.title}</p>
+      </div>
+
       {/* Cover art */}
       {coverUrl ? (
         <img src={coverUrl} alt="" className="w-full object-cover" style={{ aspectRatio: '16/9' }} />
@@ -154,16 +162,12 @@ function DetailsPanel({
         <div className="w-full bg-white/[0.02]" style={{ aspectRatio: '16/9' }} />
       )}
 
-      {/* Title + description */}
-      <div className="px-7 pt-5 pb-5 border-b border-white/[0.05] flex flex-col gap-2">
-        {album.theme && (
-          <p className="text-[9px] tracking-[0.25em] uppercase text-white/25">{album.theme}</p>
-        )}
-        <p className="text-[15px] font-light tracking-wide text-white/85">{album.title}</p>
-        {album.description && (
+      {/* Description */}
+      {album.description && (
+        <div className="px-7 pt-4 pb-5 border-b border-white/[0.05]">
           <p className="text-[11px] text-white/40 leading-relaxed tracking-wide">{album.description}</p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Lenses */}
       {lenses.length > 0 && (
