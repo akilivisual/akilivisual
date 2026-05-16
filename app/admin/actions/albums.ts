@@ -84,6 +84,17 @@ export async function reorderAlbumStates(
   return { ok: true }
 }
 
+export async function updateAlbumMetadata(
+  id: string,
+  metadata: Record<string, unknown>
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { error } = await supabase.from('albums').update({ metadata }).eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin/albums')
+  return { ok: true }
+}
+
 export async function updateCanvasLenses(
   canvasId: string,
   lenses: string[]

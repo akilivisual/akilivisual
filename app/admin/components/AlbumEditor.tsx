@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Reorder, useDragControls } from 'framer-motion'
-import type { AlbumWithStates, Canvas } from '@/lib/schema/types'
-import { updateAlbum, assignStateToAlbum, reorderAlbumStates } from '@/app/admin/actions/albums'
+import type { AlbumWithStates, Canvas, MediaAsset } from '@/lib/schema/types'
+import { updateAlbum, updateAlbumMetadata, assignStateToAlbum, reorderAlbumStates } from '@/app/admin/actions/albums'
+import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
+import { getSupabase } from '@/lib/supabase/client'
 
 interface AlbumEditorProps {
   album: AlbumWithStates
@@ -22,6 +24,39 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
   const [unassigned, setUnassigned] = useState<Canvas[]>(initialUnassigned)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  const [coverUrl, setCoverUrl] = useState<string>((album.metadata?.cover_url as string) ?? '')
+  const [showLibrary, setShowLibrary] = useState(false)
+  const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function saveCover(url: string) {
+    setCoverUrl(url)
+    await updateAlbumMetadata(album.id, { ...album.metadata, cover_url: url || undefined })
+  }
+
+  async function openLibrary() {
+    setShowLibrary(true)
+    const assets = await listMediaAssets()
+    setLibraryAssets(assets.filter(a => a.asset_type === 'image'))
+  }
+
+  async function handleCoverUpload(file: File) {
+    setUploading(true)
+    try {
+      const supabase = getSupabase()
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (error) return
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
+      await createMediaAsset(publicUrl, 'image', file.name.replace(/\.[^.]+$/, ''), path)
+      await saveCover(publicUrl)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function handleSaveMeta(e: React.FormEvent) {
     e.preventDefault()
@@ -113,6 +148,70 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
             {saving ? 'Saving…' : 'Save'}
           </button>
         </form>
+      </section>
+
+      {/* Cover Art */}
+      <section>
+        <p className="text-[9px] tracking-[0.3em] uppercase text-white/25 mb-5">Cover Art</p>
+        <div className="flex flex-col gap-3">
+          {coverUrl ? (
+            <div className="relative group">
+              <img src={coverUrl} alt="" className="w-full h-40 object-cover border border-white/10" />
+              <button
+                onClick={() => saveCover('')}
+                className="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center bg-black/60 text-white/40 hover:text-white/80 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <div className="w-full h-28 border border-dashed border-white/10 flex items-center justify-center">
+              <span className="text-[9px] text-white/15 italic">no cover art</span>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 disabled:text-white/15 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5"
+            >
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+            <button
+              type="button"
+              onClick={openLibrary}
+              className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5"
+            >
+              Library
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f) }} />
+          </div>
+          {showLibrary && (
+            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-white/20 tracking-[0.1em] uppercase">Choose image</span>
+                <button type="button" onClick={() => setShowLibrary(false)} className="text-[9px] text-white/20 hover:text-white/50">close</button>
+              </div>
+              {libraryAssets.length === 0 ? (
+                <p className="text-[9px] text-white/15 italic">No images in library</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {libraryAssets.map(a => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => { saveCover(a.url); setShowLibrary(false) }}
+                      className="aspect-video border border-white/10 hover:border-white/30 overflow-hidden transition-colors"
+                    >
+                      <img src={a.url} alt={a.title ?? ''} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* States */}
