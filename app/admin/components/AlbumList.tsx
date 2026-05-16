@@ -95,6 +95,17 @@ function AlbumRow({ album, onDelete }: { album: Album; onDelete: (id: string) =>
         {[0,1,2].map(i => <div key={i} className="w-3 h-px bg-white" />)}
       </div>
 
+      {/* Cover art thumbnail */}
+      {(album.metadata?.cover_url as string | undefined) ? (
+        <img
+          src={album.metadata.cover_url as string}
+          alt=""
+          className="w-10 h-7 object-cover border border-white/10 shrink-0"
+        />
+      ) : (
+        <div className="w-10 h-7 border border-dashed border-white/08 shrink-0" />
+      )}
+
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-3">
