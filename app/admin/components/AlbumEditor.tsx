@@ -231,19 +231,30 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
         {unassigned.length > 0 && (
           <div className="flex flex-col gap-2">
             <p className="text-[9px] tracking-[0.2em] uppercase text-white/15 mb-1">Add State</p>
-            {unassigned.map(s => (
-              <button
-                key={s.id}
-                onClick={() => handleAssign(s)}
-                className="flex items-center gap-3 px-4 py-2.5 text-left border border-dashed border-white/08 hover:border-white/20 transition-colors group"
-              >
-                <span className="text-white/15 group-hover:text-white/40 transition-colors text-xs">+</span>
-                <span className="text-[11px] text-white/35 group-hover:text-white/60 transition-colors tracking-wide">{s.title}</span>
-                {s.canvas_type && (
-                  <span className="text-[9px] text-white/15 tracking-[0.1em] uppercase ml-auto">{s.canvas_type}</span>
-                )}
-              </button>
-            ))}
+            {unassigned.map(s => {
+              const thumb = s.metadata?.thumbnail_url as string | undefined
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => handleAssign(s)}
+                  className="flex items-center gap-3 text-left border border-dashed border-white/08 hover:border-white/20 transition-colors group overflow-hidden"
+                >
+                  {/* 16:9 thumbnail */}
+                  <div className="shrink-0 w-24" style={{ aspectRatio: '16/9' }}>
+                    {thumb ? (
+                      <img src={thumb} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-90 transition-opacity" />
+                    ) : (
+                      <div className="w-full h-full bg-white/[0.02]" />
+                    )}
+                  </div>
+                  <span className="text-white/15 group-hover:text-white/40 transition-colors text-xs">+</span>
+                  <span className="text-[11px] text-white/35 group-hover:text-white/60 transition-colors tracking-wide">{s.title}</span>
+                  {s.canvas_type && (
+                    <span className="text-[9px] text-white/15 tracking-[0.1em] uppercase ml-auto pr-4">{s.canvas_type}</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
       </section>
@@ -253,14 +264,24 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
 
 function StateRow({ state, onRemove }: { state: Canvas; onRemove: (s: Canvas) => void }) {
   const controls = useDragControls()
+  const thumbUrl = state.metadata?.thumbnail_url as string | undefined
   return (
     <Reorder.Item
       value={state}
       dragListener={false}
       dragControls={controls}
       whileDrag={{ scale: 1.01, opacity: 0.85 }}
-      className="flex items-center gap-3 px-4 py-2.5 bg-white/[0.02] border border-white/[0.05] group"
+      className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.05] group overflow-hidden"
     >
+      {/* 16:9 thumbnail */}
+      <div className="shrink-0 w-24" style={{ aspectRatio: '16/9' }}>
+        {thumbUrl ? (
+          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-white/[0.03]" />
+        )}
+      </div>
+
       <div
         className="flex flex-col gap-[3px] cursor-grab shrink-0 opacity-20 group-hover:opacity-40 transition-opacity"
         onPointerDown={e => controls.start(e)}
@@ -273,7 +294,7 @@ function StateRow({ state, onRemove }: { state: Canvas; onRemove: (s: Canvas) =>
       )}
       <button
         onClick={() => onRemove(state)}
-        className="text-[10px] text-white/15 hover:text-red-400/50 transition-colors ml-1"
+        className="text-[10px] text-white/15 hover:text-red-400/50 transition-colors ml-1 mr-3"
       >
         ×
       </button>
