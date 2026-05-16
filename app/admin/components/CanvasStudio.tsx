@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { AnimatePresence } from 'framer-motion'
 import type { Album, CanvasWithPlacements, MediaAsset, PlacementWithModule } from '@/lib/schema/types'
@@ -310,35 +310,27 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
           </div>
         </div>
 
-        {/* Stage — constrained to selected viewport aspect ratio, centered */}
-        <div className="flex-1 min-h-0 flex items-center justify-center p-4 bg-[#030303] overflow-hidden">
-          <div
-            className="relative bg-[#050505] overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.07)]"
-            style={viewport === 'landscape'
-              ? { aspectRatio: '16/9', width: '100%', maxHeight: '100%' }
-              : { aspectRatio: '9/16', height: '100%', maxWidth: '100%' }
-            }
-          >
-            {mode === 'edit' && (
-              <CanvasEditor
-                placements={placements}
-                selectedId={editing?.id ?? null}
-                onSelect={handleSelect}
-                onCommit={handleMove}
-                onDelete={handleDelete}
-              />
-            )}
-            {mode === 'preview' && (
-              <iframe
-                key={refreshKey}
-                src={`/preview/${canvas.slug}`}
-                className="w-full h-full border-none"
-                title={canvas.title}
-                allow="autoplay"
-              />
-            )}
-          </div>
-        </div>
+        {/* Stage — renders at design resolution scaled to fit panel */}
+        <ScaledStage viewport={viewport}>
+          {mode === 'edit' && (
+            <CanvasEditor
+              placements={placements}
+              selectedId={editing?.id ?? null}
+              onSelect={handleSelect}
+              onCommit={handleMove}
+              onDelete={handleDelete}
+            />
+          )}
+          {mode === 'preview' && (
+            <iframe
+              key={refreshKey}
+              src={`/preview/${canvas.slug}`}
+              className="w-full h-full border-none"
+              title={canvas.title}
+              allow="autoplay"
+            />
+          )}
+        </ScaledStage>
 
       </div>
 
@@ -354,6 +346,39 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
         )}
       </AnimatePresence>
 
+    </div>
+  )
+}
+
+// Renders children at a fixed design resolution (1920×1080 or 1080×1920) scaled to fit
+// the available panel space. This makes the admin preview accurately reflect how content
+// will look on a full-screen deployment viewport at that resolution.
+function ScaledStage({ viewport, children }: { viewport: 'landscape' | 'portrait'; children: React.ReactNode }) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  const DESIGN_W = viewport === 'landscape' ? 1920 : 1080
+  const DESIGN_H = viewport === 'landscape' ? 1080 : 1920
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const obs = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setScale(Math.min(width / DESIGN_W, height / DESIGN_H))
+    })
+    obs.observe(wrapper)
+    return () => obs.disconnect()
+  }, [DESIGN_W, DESIGN_H])
+
+  return (
+    <div ref={wrapperRef} className="flex-1 min-h-0 flex items-center justify-center bg-[#030303] overflow-hidden">
+      <div
+        className="relative bg-[#050505] shadow-[0_0_0_1px_rgba(255,255,255,0.07)] overflow-hidden shrink-0"
+        style={{ width: DESIGN_W, height: DESIGN_H, transform: `scale(${scale})`, transformOrigin: 'center center' }}
+      >
+        {children}
+      </div>
     </div>
   )
 }

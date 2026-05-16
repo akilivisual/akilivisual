@@ -297,6 +297,11 @@ function ModuleCard({
           <span className="text-[9px] tracking-[0.1em] uppercase text-white/15 border border-white/[0.06] px-1 py-px leading-none">
             {mod.module_type}
           </span>
+          {localW === undefined && !hasFullWidth && (
+            <span className="text-[9px] tracking-[0.08em] uppercase text-amber-400/40 border border-amber-400/20 px-1 py-px leading-none">
+              fills canvas
+            </span>
+          )}
           <span className="text-[9px] text-white/15 font-mono tabular-nums">
             {localX.toFixed(1)}, {localY.toFixed(1)}
             {localW !== undefined && ` · ${localW.toFixed(0)}×${localH?.toFixed(0)}%`}
