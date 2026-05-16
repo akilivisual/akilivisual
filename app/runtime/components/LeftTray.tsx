@@ -72,37 +72,40 @@ export function LeftTray({ canvases, albums, activeIndex }: LeftTrayProps) {
               {/* Albums */}
               {albums.length > 0 && (
                 <section>
-                  <p className="text-[9px] tracking-[0.3em] uppercase text-white/20 mb-4">Albums</p>
-                  <div className="flex flex-col gap-1">
-                    {albums.map(album => {
-                      const isActive = activeAlbumId === album.id
-                      return (
-                        <button
-                          key={album.id}
-                          onClick={() => setAlbum(album.id)}
-                          className="flex items-center gap-3 py-2 text-left group"
-                        >
-                          <span
-                            className="w-1 h-1 rotate-45 shrink-0 border transition-all duration-200"
+                  <p className="text-[9px] tracking-[0.3em] uppercase text-white/20 mb-3">Albums</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[...albums]
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                      .map(album => {
+                        const isActive = activeAlbumId === album.id
+                        const coverUrl = album.metadata?.cover_url as string | undefined
+                        return (
+                          <button
+                            key={album.id}
+                            onClick={() => setAlbum(album.id)}
+                            className="relative overflow-hidden text-left transition-all duration-200"
                             style={{
-                              borderColor: isActive ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)',
-                              background: isActive ? 'rgba(255,255,255,0.6)' : 'transparent',
+                              aspectRatio: '16/9',
+                              border: `1px solid ${isActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.07)'}`,
+                              outline: isActive ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                              outlineOffset: '2px',
                             }}
-                          />
-                          <span
-                            className="flex-1 text-sm font-light tracking-wide transition-colors duration-200 truncate"
-                            style={{ color: isActive ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)' }}
                           >
-                            {album.title}
-                          </span>
-                          {album.theme && (
-                            <span className="text-[8px] tracking-[0.1em] uppercase text-white/15 shrink-0">
-                              {album.status === 'live' ? '●' : '○'}
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
+                            {coverUrl ? (
+                              <img src={coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                            ) : (
+                              <div className="absolute inset-0 bg-white/[0.03]" />
+                            )}
+                            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.15) 60%, transparent 100%)' }} />
+                            <div className="absolute bottom-0 left-0 right-0 px-2 pb-1.5">
+                              <p className="text-[8px] font-light tracking-wide text-white/80 truncate leading-tight">{album.title}</p>
+                              {album.theme && (
+                                <p className="text-[7px] tracking-[0.08em] uppercase text-white/30 truncate leading-tight mt-px">{album.theme}</p>
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
                   </div>
                 </section>
               )}
@@ -110,19 +113,19 @@ export function LeftTray({ canvases, albums, activeIndex }: LeftTrayProps) {
               {/* Lenses */}
               {populatedLenses.length > 0 && (
                 <section>
-                  <p className="text-[9px] tracking-[0.3em] uppercase text-white/20 mb-4">Lenses</p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <p className="text-[9px] tracking-[0.3em] uppercase text-white/20 mb-2.5">Lenses</p>
+                  <div className="flex flex-wrap gap-1">
                     {populatedLenses.map(lens => {
                       const isActive = activeLens === lens
                       return (
                         <button
                           key={lens}
                           onClick={() => setLens(lens)}
-                          className="text-[9px] tracking-[0.15em] uppercase px-2.5 py-1.5 border transition-all duration-200"
+                          className="text-[8px] tracking-[0.12em] uppercase px-2 py-1 border transition-all duration-200"
                           style={{
-                            borderColor: isActive ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)',
-                            color: isActive ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.3)',
-                            background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
+                            borderColor: isActive ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.08)',
+                            color: isActive ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.25)',
+                            background: isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
                           }}
                         >
                           {lens}
