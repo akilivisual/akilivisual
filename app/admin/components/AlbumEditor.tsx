@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Reorder, useDragControls } from 'framer-motion'
 import type { AlbumWithStates, Canvas, MediaAsset } from '@/lib/schema/types'
 import { updateAlbum, updateAlbumMetadata, assignStateToAlbum, reorderAlbumStates } from '@/app/admin/actions/albums'
@@ -488,6 +489,21 @@ function StateRow({ state, onRemove }: { state: Canvas; onRemove: (s: Canvas) =>
       {state.canvas_type && (
         <span className="text-[9px] text-white/20 tracking-[0.1em] uppercase">{state.canvas_type}</span>
       )}
+      <Link
+        href={`/admin/canvas/${state.slug}`}
+        className="text-[9px] tracking-[0.15em] uppercase text-white/20 hover:text-white/60 transition-colors opacity-0 group-hover:opacity-100 ml-2"
+        onClick={e => e.stopPropagation()}
+      >
+        edit
+      </Link>
+      <Link
+        href={`/preview/${state.slug}`}
+        target="_blank"
+        className="text-[9px] tracking-[0.15em] uppercase text-white/20 hover:text-white/60 transition-colors opacity-0 group-hover:opacity-100"
+        onClick={e => e.stopPropagation()}
+      >
+        view
+      </Link>
       <button
         onClick={() => onRemove(state)}
         className="text-[10px] text-white/15 hover:text-red-400/50 transition-colors ml-1 mr-3"
