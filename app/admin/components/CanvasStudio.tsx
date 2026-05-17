@@ -3,16 +3,15 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { AnimatePresence } from 'framer-motion'
-import type { Album, CanvasWithPlacements, MediaAsset, PlacementWithModule, Section, SectionLayoutProps, SectionVisualProps, TransitionProfile, TransitionStep } from '@/lib/schema/types'
+import type { Album, CanvasWithPlacements, MediaAsset, PlacementWithModule, TransitionProfile, TransitionStep } from '@/lib/schema/types'
 import { LENS_OPTIONS } from '@/lib/schema/types'
 import { updatePlacement, deletePlacement } from '@/app/admin/actions/modules'
 import { updateCanvasMetadata, updateTransitionProfile } from '@/app/admin/actions/canvas'
 import { assignStateToAlbum, updateCanvasLenses } from '@/app/admin/actions/albums'
-import { createSection, updateSection, deleteSection, reorderSections } from '@/app/admin/actions/sections'
 import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
 import { getSupabase } from '@/lib/supabase/client'
 import { fetchAllCanvases } from '@/lib/supabase/canvas'
-import { PlacementList } from './PlacementList'
+import { LayerPanel } from './LayerPanel'
 import { CanvasEditor } from './CanvasEditor'
 import { ModuleEditPanel } from './ModuleEditPanel'
 import { DeleteCanvasButton } from './DeleteCanvasButton'
@@ -44,57 +43,6 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
   useEffect(() => {
     fetchAllCanvases().then(setAllCanvases)
   }, [])
-
-  // True sections (sections table)
-  const [sections, setSections] = useState<Section[]>(canvas.sections ?? [])
-  const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null)
-
-  async function handleAddSection() {
-    const result = await createSection(canvas.id)
-    if (result.ok && result.id) {
-      setSections(prev => [...prev, {
-        id: result.id!,
-        canvas_id: canvas.id,
-        title: `Section ${prev.length + 1}`,
-        order_index: prev.length,
-        height: 'viewport',
-        layout_type: 'free',
-        layout_props: {},
-        visual_props: {},
-        metadata: {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }])
-      setExpandedSectionId(result.id!)
-    }
-  }
-
-  async function handleDeleteSection(id: string) {
-    await deleteSection(id)
-    setSections(prev => prev.filter(s => s.id !== id))
-    if (expandedSectionId === id) setExpandedSectionId(null)
-  }
-
-  async function handleUpdateSection(id: string, data: Partial<Section>) {
-    setSections(prev => prev.map(s => s.id === id ? { ...s, ...data } : s))
-    await updateSection(id, data)
-  }
-
-  async function handleMoveSectionUp(i: number) {
-    if (i === 0) return
-    const reordered = [...sections]
-    ;[reordered[i - 1], reordered[i]] = [reordered[i], reordered[i - 1]]
-    setSections(reordered)
-    await reorderSections(reordered.map(s => s.id))
-  }
-
-  async function handleMoveSectionDown(i: number) {
-    if (i === sections.length - 1) return
-    const reordered = [...sections]
-    ;[reordered[i], reordered[i + 1]] = [reordered[i + 1], reordered[i]]
-    setSections(reordered)
-    await reorderSections(reordered.map(s => s.id))
-  }
 
   async function saveThumbnail(url: string) {
     setThumbnail(url)
@@ -311,40 +259,6 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
           )}
         </div>
 
-        {/* Sections panel */}
-        <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] tracking-[0.2em] uppercase text-white/25">Sections</span>
-            <button
-              onClick={handleAddSection}
-              className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors"
-            >
-              + Add
-            </button>
-          </div>
-          {sections.length === 0 ? (
-            <p className="text-[9px] text-white/15 italic">No sections — modules render freely across the full state.</p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {sections.map((section, i) => (
-                <SectionItem
-                  key={section.id}
-                  section={section}
-                  index={i}
-                  isExpanded={expandedSectionId === section.id}
-                  onToggle={() => setExpandedSectionId(prev => prev === section.id ? null : section.id)}
-                  onUpdate={(data) => handleUpdateSection(section.id, data)}
-                  onDelete={() => handleDeleteSection(section.id)}
-                  onMoveUp={() => handleMoveSectionUp(i)}
-                  onMoveDown={() => handleMoveSectionDown(i)}
-                  isFirst={i === 0}
-                  isLast={i === sections.length - 1}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Transition */}
         <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-3">
           <span className="text-[9px] tracking-[0.2em] uppercase text-white/25">Transition</span>
@@ -401,16 +315,16 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
           </div>
         </div>
 
-        {/* Placement list */}
-        <div className="py-5 flex-1">
-          <PlacementList
+        {/* Unified layer panel */}
+        <div className="py-5 flex-1 min-h-0 overflow-y-auto">
+          <LayerPanel
+            canvas={canvas}
             placements={placements}
-            canvasId={canvas.id}
+            sections={canvas.sections ?? []}
             selectedId={editing?.id ?? null}
-            onEdit={setEditing}
-            onAdd={(placement) => setPlacements(prev => [...prev, placement])}
+            onEditPlacement={setEditing}
+            onPlacementsChange={setPlacements}
             onSaved={() => setRefreshKey(k => k + 1)}
-            onReorder={setPlacements}
           />
         </div>
 
@@ -499,7 +413,7 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
             onClose={() => setEditing(null)}
             onSaved={handleSaved}
             onDelete={() => handleDelete(editing.id)}
-            sections={sections}
+            sections={canvas.sections ?? []}
           />
         )}
       </AnimatePresence>
@@ -537,206 +451,6 @@ function ScaledStage({ viewport, children }: { viewport: 'landscape' | 'portrait
       >
         {children}
       </div>
-    </div>
-  )
-}
-
-// ── Section editor ────────────────────────────────────────────────────
-
-const HEIGHT_OPTIONS = ['viewport', 'auto', '50vh', '75vh', '600px', '800px', '1000px']
-
-function SectionItem({
-  section, index, isExpanded, onToggle, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
-}: {
-  section: Section
-  index: number
-  isExpanded: boolean
-  onToggle: () => void
-  onUpdate: (data: Partial<Section>) => void
-  onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-  isFirst: boolean
-  isLast: boolean
-}) {
-  const vp = (section.visual_props ?? {}) as Record<string, unknown>
-  const lp = (section.layout_props ?? {}) as Record<string, unknown>
-  const isFlex = section.layout_type === 'flex'
-
-  return (
-    <div className="border border-white/08 bg-white/[0.01]">
-      {/* Row header */}
-      <div className="flex items-center gap-2 px-3 py-2">
-        <button onClick={onToggle} className="text-[10px] text-white/30 hover:text-white/60 w-3 shrink-0">
-          {isExpanded ? '▾' : '▸'}
-        </button>
-        <span className="text-[11px] text-white/60 flex-1 truncate">{section.title || `Section ${index + 1}`}</span>
-        <span className="text-[9px] text-white/20 tracking-[0.1em]">{section.height} · {section.layout_type}</span>
-        <div className="flex items-center gap-1 ml-2">
-          <button onClick={onMoveUp} disabled={isFirst} className="text-[9px] text-white/20 hover:text-white/50 disabled:opacity-20 transition-colors">↑</button>
-          <button onClick={onMoveDown} disabled={isLast} className="text-[9px] text-white/20 hover:text-white/50 disabled:opacity-20 transition-colors">↓</button>
-          <button onClick={onDelete} className="text-[9px] text-white/20 hover:text-red-400/60 transition-colors ml-1">×</button>
-        </div>
-      </div>
-
-      {/* Expanded editor */}
-      {isExpanded && (
-        <div className="px-3 pb-3 flex flex-col gap-3 border-t border-white/08 pt-3">
-          {/* Title */}
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-14 shrink-0">Title</span>
-            <input
-              type="text"
-              value={section.title ?? ''}
-              onChange={e => onUpdate({ title: e.target.value })}
-              className="flex-1 bg-transparent border-b border-white/10 text-white/60 text-[11px] py-0.5 focus:outline-none focus:border-white/30"
-              placeholder={`Section ${index + 1}`}
-            />
-          </div>
-
-          {/* Height */}
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-14 shrink-0">Height</span>
-            <select
-              value={section.height}
-              onChange={e => onUpdate({ height: e.target.value })}
-              className="flex-1 bg-black border-b border-white/10 text-white/60 text-[11px] py-0.5 focus:outline-none focus:border-white/30"
-            >
-              {HEIGHT_OPTIONS.map(h => <option key={h} value={h}>{h}</option>)}
-            </select>
-          </div>
-
-          {/* Layout type */}
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-14 shrink-0">Layout</span>
-            <div className="flex gap-2">
-              {(['free', 'flex'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => onUpdate({ layout_type: t })}
-                  className={`text-[9px] tracking-[0.15em] uppercase px-2 py-1 border transition-colors ${
-                    section.layout_type === t ? 'border-white/35 text-white/70' : 'border-white/10 text-white/25 hover:border-white/20'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Flex options */}
-          {isFlex && (
-            <div className="flex flex-col gap-2 pl-[68px]">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-white/20 w-16">Direction</span>
-                <select
-                  value={(lp.direction as string) ?? 'column'}
-                  onChange={e => onUpdate({ layout_props: { ...lp, direction: e.target.value } as SectionLayoutProps })}
-                  className="bg-black border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none"
-                >
-                  <option value="column">column</option>
-                  <option value="row">row</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-white/20 w-16">Align</span>
-                <select
-                  value={(lp.align as string) ?? 'center'}
-                  onChange={e => onUpdate({ layout_props: { ...lp, align: e.target.value } as SectionLayoutProps })}
-                  className="bg-black border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none"
-                >
-                  {['flex-start', 'center', 'flex-end', 'stretch'].map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-white/20 w-16">Justify</span>
-                <select
-                  value={(lp.justify as string) ?? 'flex-start'}
-                  onChange={e => onUpdate({ layout_props: { ...lp, justify: e.target.value } as SectionLayoutProps })}
-                  className="bg-black border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none"
-                >
-                  {['flex-start', 'center', 'flex-end', 'space-between', 'space-around'].map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-white/20 w-16">Gap</span>
-                <input
-                  type="number"
-                  value={(lp.gap as number) ?? 0}
-                  onChange={e => onUpdate({ layout_props: { ...lp, gap: Number(e.target.value) } as SectionLayoutProps })}
-                  className="w-16 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none"
-                />
-                <span className="text-[9px] text-white/15">px</span>
-              </div>
-            </div>
-          )}
-
-          {/* Padding */}
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-14 shrink-0">Padding</span>
-            <div className="flex gap-2">
-              {(['padding_top', 'padding_right', 'padding_bottom', 'padding_left'] as const).map((k, pi) => (
-                <div key={k} className="flex flex-col items-center gap-0.5">
-                  <input
-                    type="number"
-                    value={(lp[k] as number) ?? 0}
-                    onChange={e => onUpdate({ layout_props: { ...lp, [k]: Number(e.target.value) } as SectionLayoutProps })}
-                    className="w-10 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 text-center focus:outline-none"
-                  />
-                  <span className="text-[8px] text-white/15">{['T', 'R', 'B', 'L'][pi]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Background */}
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-14 shrink-0">Color</span>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={(vp.background_color as string) || '#000000'}
-                onChange={e => onUpdate({ visual_props: { ...vp, background_color: e.target.value } as SectionVisualProps })}
-                className="w-6 h-6 bg-transparent border border-white/10 cursor-pointer rounded-none p-0"
-              />
-              <input
-                type="text"
-                value={(vp.background_color as string) || ''}
-                onChange={e => onUpdate({ visual_props: { ...vp, background_color: e.target.value || undefined } as SectionVisualProps })}
-                placeholder="transparent"
-                className="bg-transparent border-b border-white/10 text-white/40 text-[10px] font-mono py-0.5 w-24 focus:outline-none"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-14 shrink-0">Opacity</span>
-            <input
-              type="range"
-              min={0} max={1} step={0.05}
-              value={(vp.background_opacity as number) ?? 1}
-              onChange={e => onUpdate({ visual_props: { ...vp, background_opacity: Number(e.target.value) } as SectionVisualProps })}
-              className="flex-1 accent-white/60"
-            />
-            <span className="text-[9px] text-white/25 w-6">{Math.round(((vp.background_opacity as number) ?? 1) * 100)}%</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-14 shrink-0">Bg Image</span>
-            {vp.background_image ? (
-              <div className="flex items-center gap-2">
-                <img src={vp.background_image as string} alt="" className="w-12 h-7 object-cover border border-white/10" />
-                <button
-                  onClick={() => onUpdate({ visual_props: { ...vp, background_image: undefined } as SectionVisualProps })}
-                  className="text-[9px] text-white/20 hover:text-white/60 transition-colors"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <span className="text-[9px] text-white/15 italic">none</span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
