@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useMemo } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { fetchAllCanvases, fetchAllAlbums } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
 import { PointerProvider } from './context/PointerContext'
@@ -27,8 +28,7 @@ function StageCarouselInner() {
   const [albums, setAlbums] = useState<Album[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
-  const sectionRefs = useRef<(HTMLDivElement | null)[]>([])
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const stateContainerRef = useRef<HTMLDivElement>(null)
   const { activeAlbumId, activeLens } = useFilter()
 
   useEffect(() => {
@@ -57,7 +57,7 @@ function StageCarouselInner() {
       .flatMap(c => (c.metadata?.sections as string[]) ?? [])
   ), [canvases])
 
-  // Top-level canvases: exclude raw section canvases + apply album/lens filter
+  // Top-level canvases: apply album/lens filter
   const visible = useMemo(() => canvases.filter(c => {
     if (allSectionIds.has(c.id)) return false
     if (activeAlbumId && c.album_id !== activeAlbumId) return false
@@ -65,7 +65,7 @@ function StageCarouselInner() {
     return true
   }), [canvases, allSectionIds, activeAlbumId, activeLens])
 
-  // Flat slide list: scrollable canvases expand into their sections
+  // Flat slide list
   const slides = useMemo<Slide[]>(() => visible.flatMap(canvas => {
     if (canvas.canvas_type !== 'scrollable') return [{ canvas }]
     const sectionIds = (canvas.metadata?.sections as string[]) ?? []
@@ -75,20 +75,12 @@ function StageCarouselInner() {
       : [{ canvas }]
   }), [visible, canvases])
 
+  // Clamp activeIndex when slides change (e.g. album filter switch)
   useEffect(() => {
-    if (slides.length === 0) return
-    const observers = slides.map((_, i) => {
-      const el = sectionRefs.current[i]
-      if (!el) return null
-      const obs = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) setActiveIndex(i) },
-        { threshold: 0.5 }
-      )
-      obs.observe(el)
-      return obs
-    })
-    return () => observers.forEach((o) => o?.disconnect())
-  }, [slides])
+    if (slides.length > 0 && activeIndex >= slides.length) {
+      setActiveIndex(0)
+    }
+  }, [slides, activeIndex])
 
   if (!loaded) {
     return (
@@ -109,6 +101,7 @@ function StageCarouselInner() {
   const safeIndex = Math.min(activeIndex, Math.max(0, slides.length - 1))
   const activeSlide = slides[safeIndex] ?? null
   const activeCanvas = activeSlide?.canvas ?? null
+  const hasSections = (activeCanvas?.sections?.length ?? 0) > 0
   const trayPlacements = (activeCanvas?.placements ?? []).filter(
     p => ((p.overrides ?? {}) as Record<string, unknown>).context === 'tray'
   )
@@ -119,56 +112,61 @@ function StageCarouselInner() {
     : safeIndex
 
   return (
-    <NavigationProvider canvases={slides.map(s => s.canvas)} sectionRefs={sectionRefs} activeCanvasId={activeCanvas?.id}>
+    <NavigationProvider
+      canvases={slides.map(s => s.canvas)}
+      activeCanvasId={activeCanvas?.id}
+      onNavigate={setActiveIndex}
+    >
       <KeyboardNav />
       <RightTrayProvider>
         <LeftTray canvases={visible} albums={albums} activeIndex={Math.max(0, activeVisibleIndex)} />
         <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} albums={albums} canvases={canvases} />
 
-        {/* Scroll container */}
-        <div ref={scrollContainerRef} className="h-screen overflow-y-scroll snap-y snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-          {slides.length === 0 ? (
-            <div className="h-screen flex items-center justify-center">
-              <span className="text-white/15 text-xs tracking-widest uppercase">no states match</span>
-            </div>
-          ) : slides.map((slide, i) => (
-            <div
-              key={slide.canvas.id}
-              ref={(el) => { sectionRefs.current[i] = el }}
-              className={`relative w-full h-screen snap-start bg-black ${
-                (slide.canvas.sections?.length ?? 0) > 0 ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'
-              }`}
-            >
-              <SectionScrollProvider containerRef={scrollContainerRef} sectionRef={sectionRefs.current[i]}>
-                <PointerProvider>
-                  <CanvasRenderer canvas={slide.canvas} />
-                </PointerProvider>
-              </SectionScrollProvider>
-            </div>
-          ))}
+        {/* Single full-screen stage — one state at a time */}
+        <div
+          ref={stateContainerRef}
+          className={`absolute inset-0 bg-black ${hasSections ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
+          style={{ scrollbarWidth: 'none' }}
+        >
+          <SectionScrollProvider containerRef={stateContainerRef} sectionRef={null}>
+            <PointerProvider>
+              <AnimatePresence mode="wait">
+                {activeCanvas && (
+                  <CanvasRenderer key={activeCanvas.id} canvas={activeCanvas} />
+                )}
+              </AnimatePresence>
+            </PointerProvider>
+          </SectionScrollProvider>
         </div>
 
         {/* Dot navigator */}
         {slides.length > 1 && (
-          <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50">
-            {slides.map((slide, i) => (
-              <button
-                key={slide.canvas.id}
-                onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth' })}
-                title={slide.canvas.title}
-                className={`w-1.5 rounded-full transition-all duration-500 ${
-                  i === safeIndex
-                    ? 'h-5 bg-white'
-                    : slide.parentId
-                      ? 'h-1.5 bg-white/15 hover:bg-white/35'
-                      : 'h-1.5 bg-white/25 hover:bg-white/50'
-                }`}
-              />
-            ))}
-          </div>
+          <DotNavigator slides={slides} activeIndex={safeIndex} />
         )}
       </RightTrayProvider>
     </NavigationProvider>
+  )
+}
+
+function DotNavigator({ slides, activeIndex }: { slides: Slide[]; activeIndex: number }) {
+  const { navigateToIndex } = useNavigation()
+  return (
+    <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50">
+      {slides.map((slide, i) => (
+        <button
+          key={slide.canvas.id}
+          onClick={() => navigateToIndex(i)}
+          title={slide.canvas.title}
+          className={`w-1.5 rounded-full transition-all duration-500 ${
+            i === activeIndex
+              ? 'h-5 bg-white'
+              : slide.parentId
+                ? 'h-1.5 bg-white/15 hover:bg-white/35'
+                : 'h-1.5 bg-white/25 hover:bg-white/50'
+          }`}
+        />
+      ))}
+    </div>
   )
 }
 

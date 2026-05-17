@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import type { CanvasWithPlacements, PlacementWithModule, ModuleWithActors, TransitionProfile, TransitionStep } from '@/lib/schema/types'
 
 function buildVariant(step: TransitionStep | undefined, fallback: TransitionProfile) {
@@ -42,15 +42,13 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
   const easing = tp.intro?.easing ?? tp.easing ?? 'easeInOut'
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={canvas.id}
-        className={hasSections ? 'relative w-full' : 'absolute inset-0'}
-        initial={introVariant}
-        animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
-        exit={outroVariant}
-        transition={{ duration: introDuration, ease: easing }}
-      >
+    <motion.div
+      className={hasSections ? 'relative w-full' : 'absolute inset-0'}
+      initial={introVariant}
+      animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
+      exit={outroVariant}
+      transition={{ duration: introDuration, ease: easing }}
+    >
         {hasSections ? (
           canvas.sections.map(section => (
             <SectionRenderer key={section.id} section={section} />
@@ -103,8 +101,7 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           )
         })
         )}
-      </motion.div>
-    </AnimatePresence>
+    </motion.div>
   )
 }
 
