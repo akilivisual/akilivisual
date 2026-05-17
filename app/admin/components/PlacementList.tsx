@@ -36,6 +36,7 @@ export function PlacementList({ placements: initial, canvasId, selectedId, onEdi
         id: result.placementId,
         canvas_id: canvasId,
         module_id: result.moduleId,
+        section_id: null,
         position: {},
         depth_layer: 'midground',
         order_index: placements.length,

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion'
-import type { PlacementWithModule, ModuleWithActors, Actor, VisualSchema, MediaAsset, KeyframeMap } from '@/lib/schema/types'
+import type { PlacementWithModule, ModuleWithActors, Actor, VisualSchema, MediaAsset, KeyframeMap, Section } from '@/lib/schema/types'
 import { KeyframeTimeline } from './KeyframeTimeline'
 import { updateModule, updatePlacement, updateActor, addActor, deleteActor, reorderActors } from '@/app/admin/actions/modules'
+import { assignPlacementToSection } from '@/app/admin/actions/sections'
 import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
 import { getSupabase } from '@/lib/supabase/client'
 
@@ -25,6 +26,7 @@ interface Props {
   onClose: () => void
   onSaved: (updated?: PlacementWithModule) => void
   onDelete?: () => void
+  sections?: Section[]
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -57,7 +59,7 @@ function defaultVisualSchema(type: string): Record<string, unknown> {
 
 // ── Panel ────────────────────────────────────────────────────────────
 
-export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved, onDelete }: Props) {
+export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved, onDelete, sections = [] }: Props) {
   const [tab, setTab] = useState<Tab>('layout')
   const [placement, setPlacement] = useState(initialPlacement)
   const [module, setModule] = useState(initialPlacement.module)
@@ -165,6 +167,7 @@ export function ModuleEditPanel({ placement: initialPlacement, onClose, onSaved,
               placement={placement}
               onModuleChange={setModule}
               onPlacementChange={setPlacement}
+              sections={sections}
             />
           )}
           {tab === 'interactions' && (
@@ -238,11 +241,13 @@ function LayoutTab({
   placement,
   onModuleChange,
   onPlacementChange,
+  sections = [],
 }: {
   module: ModuleWithActors
   placement: PlacementWithModule
   onModuleChange: (m: ModuleWithActors) => void
   onPlacementChange: (p: PlacementWithModule) => void
+  sections?: Section[]
 }) {
   const pos = (placement.position ?? {}) as Record<string, number>
   const props = (module.props ?? {}) as Record<string, unknown>
@@ -265,6 +270,25 @@ function LayoutTab({
           placeholder="e.g. Logo Focus"
         />
       </Field>
+
+      {sections.length > 0 && (
+        <Field label="Section">
+          <select
+            value={(placement as unknown as { section_id: string | null }).section_id ?? ''}
+            onChange={async (e) => {
+              const sectionId = e.target.value || null
+              onPlacementChange({ ...placement, section_id: sectionId } as PlacementWithModule)
+              await assignPlacementToSection(placement.id, sectionId)
+            }}
+            className="w-full bg-black border-b border-white/15 text-white/60 text-[11px] py-1 focus:outline-none focus:border-white/35"
+          >
+            <option value="">Unassigned (canvas level)</option>
+            {sections.map(s => (
+              <option key={s.id} value={s.id}>{s.title || `Section ${s.order_index + 1}`}</option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       <Field label="Depth Layer">
         <Select

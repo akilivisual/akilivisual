@@ -69,12 +69,49 @@ export interface CanvasPlacement {
   id: string
   canvas_id: string
   module_id: string
+  section_id: string | null
   position: Position
   depth_layer: DepthLayer
   order_index: number
   overrides: Record<string, unknown>
   created_at: string
   updated_at: string
+}
+
+export interface Section {
+  id: string
+  canvas_id: string
+  title: string | null
+  order_index: number
+  height: string        // 'viewport' | 'auto' | '600px' etc.
+  layout_type: 'free' | 'flex'
+  layout_props: SectionLayoutProps
+  visual_props: SectionVisualProps
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface SectionLayoutProps {
+  direction?: 'row' | 'column'
+  align?: string
+  justify?: string
+  gap?: number
+  wrap?: boolean
+  padding_top?: number
+  padding_right?: number
+  padding_bottom?: number
+  padding_left?: number
+}
+
+export interface SectionVisualProps {
+  background_color?: string
+  background_image?: string
+  background_opacity?: number
+}
+
+export interface SectionWithPlacements extends Section {
+  placements: PlacementWithModule[]
 }
 
 export interface Actor {
@@ -162,6 +199,7 @@ export interface PlacementWithModule extends CanvasPlacement {
 
 export interface CanvasWithPlacements extends Canvas {
   placements: PlacementWithModule[]
+  sections: SectionWithPlacements[]
 }
 
 // Legacy alias — remove once all references are migrated
@@ -325,6 +363,7 @@ export type Database = {
       canvases: { Row: Canvas; Insert: Omit<Canvas, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Canvas> }
       modules: { Row: Module; Insert: Omit<Module, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Module> }
       canvas_placements: { Row: CanvasPlacement; Insert: Omit<CanvasPlacement, 'id' | 'created_at' | 'updated_at'>; Update: Partial<CanvasPlacement> }
+      sections: { Row: Section; Insert: Omit<Section, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Section> }
       actors: { Row: Actor; Insert: Omit<Actor, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Actor> }
       media_assets: { Row: MediaAsset; Insert: Omit<MediaAsset, 'id' | 'created_at' | 'updated_at'>; Update: Partial<MediaAsset> }
       personas: { Row: Persona; Insert: Omit<Persona, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Persona> }

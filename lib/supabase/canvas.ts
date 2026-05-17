@@ -1,5 +1,5 @@
 import { getSupabase } from './client'
-import type { Album, Canvas, Module, Actor, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
+import type { Album, Canvas, Module, Actor, Section, SectionWithPlacements, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
 
 async function fetchPlacements(supabase: ReturnType<typeof getSupabase>, canvasId: string): Promise<PlacementWithModule[]> {
   const { data: placements } = await supabase
@@ -44,7 +44,17 @@ export async function fetchCanvasBySlug(slug: string): Promise<CanvasWithPlaceme
   if (canvasError || !canvas) return null
 
   const placements = await fetchPlacements(supabase, (canvas as Canvas).id)
-  return { ...(canvas as Canvas), placements }
+  const sections = await fetchSections(supabase, (canvas as Canvas).id, placements)
+  return { ...(canvas as Canvas), placements, sections }
+}
+
+async function fetchSections(supabase: ReturnType<typeof getSupabase>, canvasId: string, placements: PlacementWithModule[]): Promise<SectionWithPlacements[]> {
+  const { data } = await supabase.from('sections').select('*').eq('canvas_id', canvasId).order('order_index')
+  if (!data) return []
+  return (data as Section[]).map(s => ({
+    ...s,
+    placements: placements.filter(p => (p as unknown as { section_id: string | null }).section_id === s.id),
+  }))
 }
 
 export async function fetchAllCanvases(): Promise<CanvasWithPlacements[]> {
@@ -60,7 +70,8 @@ export async function fetchAllCanvases(): Promise<CanvasWithPlacements[]> {
   return Promise.all(
     (canvases as Canvas[]).map(async (canvas) => {
       const placements = await fetchPlacements(supabase, canvas.id)
-      return { ...canvas, placements }
+      const sections = await fetchSections(supabase, canvas.id, placements)
+      return { ...canvas, placements, sections }
     })
   )
 }
@@ -84,7 +95,8 @@ export async function fetchCanvasesByIds(ids: string[]): Promise<CanvasWithPlace
   const withPlacements = await Promise.all(
     (canvases as Canvas[]).map(async (canvas) => {
       const placements = await fetchPlacements(supabase, canvas.id)
-      return { ...canvas, placements }
+      const sections = await fetchSections(supabase, canvas.id, placements)
+      return { ...canvas, placements, sections }
     })
   )
 
@@ -114,7 +126,8 @@ export async function fetchCanvasesByProject(projectSlug: string): Promise<Canva
   return Promise.all(
     (canvases as Canvas[]).map(async (canvas) => {
       const placements = await fetchPlacements(supabase, canvas.id)
-      return { ...canvas, placements }
+      const sections = await fetchSections(supabase, canvas.id, placements)
+      return { ...canvas, placements, sections }
     })
   )
 }

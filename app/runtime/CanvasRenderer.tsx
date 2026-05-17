@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import type { CanvasWithPlacements, PlacementWithModule, ModuleWithActors } from '@/lib/schema/types'
 import { ModuleRenderer } from './ModuleRenderer'
+import { SectionRenderer } from './SectionRenderer'
 import { useParallax } from './hooks/useParallax'
 import { useTilt } from './hooks/useTilt'
 import { useNavigation } from './context/NavigationContext'
@@ -14,12 +15,13 @@ interface CanvasRendererProps {
 
 export function CanvasRenderer({ canvas }: CanvasRendererProps) {
   const transition = canvas.transition_profile
+  const hasSections = (canvas.sections?.length ?? 0) > 0
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={canvas.id}
-        className="absolute inset-0"
+        className={hasSections ? 'relative w-full' : 'absolute inset-0'}
         initial={{ opacity: 1 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -28,7 +30,12 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
           ease: transition?.easing ?? 'easeInOut',
         }}
       >
-        {[...canvas.placements]
+        {hasSections ? (
+          canvas.sections.map(section => (
+            <SectionRenderer key={section.id} section={section} />
+          ))
+        ) : (
+        [...canvas.placements]
           .filter(p => ((p.overrides ?? {}) as Record<string, unknown>).context !== 'tray')
           .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
           .map((placement, sortedIndex) => {
@@ -73,13 +80,14 @@ export function CanvasRenderer({ canvas }: CanvasRendererProps) {
               </ModuleWrapper>
             </div>
           )
-        })}
+        })
+        )}
       </motion.div>
     </AnimatePresence>
   )
 }
 
-function ModuleWrapper({ placement, children }: { placement: PlacementWithModule; children: React.ReactNode }) {
+export function ModuleWrapper({ placement, children }: { placement: PlacementWithModule; children: React.ReactNode }) {
   const mod: ModuleWithActors = placement.module
   const ip = (mod.interaction_profile ?? {}) as Record<string, unknown>
   const parallaxEnabled = !!ip.parallax_enabled

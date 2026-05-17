@@ -1,5 +1,5 @@
 import { getAdminSupabase as getSupabase } from './admin-client'
-import type { Album, AlbumWithStates, Canvas, Module, Actor, Persona, MediaAsset, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
+import type { Album, AlbumWithStates, Canvas, Module, Actor, Section, SectionWithPlacements, Persona, MediaAsset, CanvasWithPlacements, PlacementWithModule, ModuleWithActors, CanvasPlacement } from '@/lib/schema/types'
 
 async function fetchPlacements(supabase: ReturnType<typeof getSupabase>, canvasId: string): Promise<PlacementWithModule[]> {
   const { data: placements } = await supabase
@@ -32,6 +32,15 @@ async function fetchPlacements(supabase: ReturnType<typeof getSupabase>, canvasI
   )
 }
 
+async function fetchSections(supabase: ReturnType<typeof getSupabase>, canvasId: string, placements: PlacementWithModule[]): Promise<SectionWithPlacements[]> {
+  const { data } = await supabase.from('sections').select('*').eq('canvas_id', canvasId).order('order_index')
+  if (!data) return []
+  return (data as Section[]).map(s => ({
+    ...s,
+    placements: placements.filter(p => (p as unknown as { section_id: string | null }).section_id === s.id),
+  }))
+}
+
 export async function adminFetchAllCanvases(): Promise<CanvasWithPlacements[]> {
   const supabase = getSupabase()
 
@@ -45,7 +54,8 @@ export async function adminFetchAllCanvases(): Promise<CanvasWithPlacements[]> {
   return Promise.all(
     (canvases as Canvas[]).map(async (canvas) => {
       const placements = await fetchPlacements(supabase, canvas.id)
-      return { ...canvas, placements }
+      const sections = await fetchSections(supabase, canvas.id, placements)
+      return { ...canvas, placements, sections }
     })
   )
 }
@@ -62,7 +72,8 @@ export async function adminFetchCanvas(slug: string): Promise<CanvasWithPlacemen
   if (!canvas) return null
 
   const placements = await fetchPlacements(supabase, (canvas as Canvas).id)
-  return { ...(canvas as Canvas), placements }
+  const sections = await fetchSections(supabase, (canvas as Canvas).id, placements)
+  return { ...(canvas as Canvas), placements, sections }
 }
 
 export async function adminFetchAllModules(): Promise<ModuleWithActors[]> {

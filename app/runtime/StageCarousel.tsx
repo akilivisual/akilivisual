@@ -134,7 +134,9 @@ function StageCarouselInner() {
             <div
               key={slide.canvas.id}
               ref={(el) => { sectionRefs.current[i] = el }}
-              className="relative w-full h-screen snap-start overflow-hidden bg-black"
+              className={`relative w-full h-screen snap-start bg-black ${
+                (slide.canvas.sections?.length ?? 0) > 0 ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'
+              }`}
             >
               <SectionScrollProvider containerRef={scrollContainerRef} sectionRef={sectionRefs.current[i]}>
                 <PointerProvider>
