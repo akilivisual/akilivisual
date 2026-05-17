@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { fetchAllCanvases, fetchAllAlbums } from '@/lib/supabase/canvas'
+import { fetchGateConfig } from '@/lib/supabase/gate'
+import type { GateConfig } from '@/lib/supabase/gate'
 import { CanvasRenderer } from './CanvasRenderer'
 import { PointerProvider } from './context/PointerContext'
 import { NavigationProvider, useNavigation } from './context/NavigationContext'
@@ -33,14 +35,16 @@ function StageCarouselInner() {
   const [albums, setAlbums] = useState<Album[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  const [gateConfig, setGateConfig] = useState<GateConfig | null>(null)
   const stateContainerRef = useRef<HTMLDivElement>(null)
   const { activeAlbumId, activeLens } = useFilter()
   const { audioUnlocked, unlock } = useAudio()
 
   useEffect(() => {
-    Promise.all([fetchAllCanvases(), fetchAllAlbums()]).then(([cvs, albs]) => {
+    Promise.all([fetchAllCanvases(), fetchAllAlbums(), fetchGateConfig()]).then(([cvs, albs, gate]) => {
       setCanvases(cvs)
       setAlbums(albs)
+      setGateConfig(gate)
       setLoaded(true)
     })
 
@@ -125,7 +129,13 @@ function StageCarouselInner() {
     >
       <AnimatePresence>
         {loaded && !audioUnlocked && (
-          <WelcomeGate key="welcome-gate" onUnlock={unlock} />
+          <WelcomeGate
+            key="welcome-gate"
+            onUnlock={unlock}
+            imageUrl={gateConfig?.image_url}
+            title={gateConfig?.title}
+            subtitle={gateConfig?.subtitle}
+          />
         )}
       </AnimatePresence>
       <KeyboardNav />

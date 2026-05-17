@@ -13,8 +13,16 @@ const Ctx = createContext<AudioContextValue>({
 })
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const [audioUnlocked, setAudioUnlocked] = useState(false)
-  function unlock() { setAudioUnlocked(true) }
+  const [audioUnlocked, setAudioUnlocked] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return sessionStorage.getItem('audio_unlocked') === '1'
+  })
+
+  function unlock() {
+    sessionStorage.setItem('audio_unlocked', '1')
+    setAudioUnlocked(true)
+  }
+
   return <Ctx.Provider value={{ audioUnlocked, unlock }}>{children}</Ctx.Provider>
 }
 
