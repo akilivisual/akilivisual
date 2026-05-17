@@ -34,6 +34,12 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
   const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const ambientFileRef = useRef<HTMLInputElement>(null)
+  const sfxFileRef = useRef<HTMLInputElement>(null)
+  const [audioLibraryAssets, setAudioLibraryAssets] = useState<MediaAsset[]>([])
+  const [audioLibraryField, setAudioLibraryField] = useState<'ambient' | 'sfx' | null>(null)
+  const [uploadingAmbient, setUploadingAmbient] = useState(false)
+  const [uploadingSfx, setUploadingSfx] = useState(false)
   const [nextStateId, setNextStateId] = useState<string>((canvas.metadata?.next_state_id as string) ?? '')
   const [allCanvases, setAllCanvases] = useState<CanvasWithPlacements[]>([])
   const [transitionProfile, setTransitionProfile] = useState<TransitionProfile>(
@@ -63,6 +69,35 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
       ...canvas.metadata,
       ambient_audio: updated.src ? updated : undefined,
     })
+  }
+
+  async function handleAudioUpload(file: File, field: 'ambient' | 'sfx') {
+    if (field === 'ambient') setUploadingAmbient(true)
+    else setUploadingSfx(true)
+    try {
+      const supabase = getSupabase()
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (error) return
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
+      await createMediaAsset(publicUrl, 'audio', file.name.replace(/\.[^.]+$/, ''), path)
+      if (field === 'ambient') {
+        await saveAmbient({ ...ambientAudio, src: publicUrl })
+      } else {
+        const step = (transitionProfile.intro ?? {}) as TransitionStep
+        await saveTransition({ ...transitionProfile, intro: { ...step, sfx: publicUrl } })
+      }
+    } finally {
+      if (field === 'ambient') setUploadingAmbient(false)
+      else setUploadingSfx(false)
+    }
+  }
+
+  async function openAudioLibrary(field: 'ambient' | 'sfx') {
+    const assets = await listMediaAssets()
+    setAudioLibraryAssets(assets.filter(a => a.asset_type === 'audio'))
+    setAudioLibraryField(prev => prev === field ? null : field)
   }
 
   async function openLibrary() {
@@ -298,15 +333,41 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
                   <span className="text-[9px] text-white/20">s</span>
                 </div>
                 {dir === 'intro' && (
-                  <div className="flex items-center gap-3 pl-[52px]">
-                    <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">sfx</span>
-                    <input
-                      type="url"
-                      value={step.sfx ?? ''}
-                      placeholder="https://…"
-                      onChange={e => saveTransition({ ...transitionProfile, intro: { ...step, sfx: e.target.value || undefined } })}
-                      className="flex-1 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none placeholder:text-white/15"
-                    />
+                  <div className="flex flex-col gap-2 pl-[52px]">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">sfx</span>
+                      <input
+                        type="url"
+                        value={step.sfx ?? ''}
+                        placeholder="https://…"
+                        onBlur={e => saveTransition({ ...transitionProfile, intro: { ...step, sfx: e.target.value || undefined } })}
+                        onChange={e => setTransitionProfile(tp => ({ ...tp, intro: { ...(tp.intro ?? {}), sfx: e.target.value || undefined } }))}
+                        className="flex-1 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none placeholder:text-white/15"
+                      />
+                    </div>
+                    <div className="flex gap-2 pl-9">
+                      <button
+                        onClick={() => sfxFileRef.current?.click()}
+                        disabled={uploadingSfx}
+                        className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 disabled:text-white/15 transition-colors border border-white/10 hover:border-white/20 px-2.5 py-1"
+                      >
+                        {uploadingSfx ? 'Uploading…' : 'Upload'}
+                      </button>
+                      <button
+                        onClick={() => openAudioLibrary('sfx')}
+                        className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors border border-white/10 hover:border-white/20 px-2.5 py-1"
+                      >
+                        Library
+                      </button>
+                      <input ref={sfxFileRef} type="file" accept="audio/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleAudioUpload(f, 'sfx') }} />
+                    </div>
+                    {audioLibraryField === 'sfx' && (
+                      <AudioLibraryPicker
+                        assets={audioLibraryAssets}
+                        onSelect={url => { const s = (transitionProfile.intro ?? {}) as TransitionStep; saveTransition({ ...transitionProfile, intro: { ...s, sfx: url } }); setAudioLibraryField(null) }}
+                        onClose={() => setAudioLibraryField(null)}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -317,16 +378,41 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
         {/* Ambient Audio */}
         <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-3">
           <span className="text-[9px] tracking-[0.2em] uppercase text-white/25">Ambient Audio</span>
-          <div className="flex items-center gap-3">
-            <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">src</span>
-            <input
-              type="url"
-              value={ambientAudio.src ?? ''}
-              placeholder="https://…"
-              onBlur={e => saveAmbient({ ...ambientAudio, src: e.target.value || undefined })}
-              onChange={e => setAmbientAudio(a => ({ ...a, src: e.target.value || undefined }))}
-              className="flex-1 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none placeholder:text-white/15"
-            />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">src</span>
+              <input
+                type="url"
+                value={ambientAudio.src ?? ''}
+                placeholder="https://…"
+                onBlur={e => saveAmbient({ ...ambientAudio, src: e.target.value || undefined })}
+                onChange={e => setAmbientAudio(a => ({ ...a, src: e.target.value || undefined }))}
+                className="flex-1 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none placeholder:text-white/15"
+              />
+            </div>
+            <div className="flex gap-2 pl-9">
+              <button
+                onClick={() => ambientFileRef.current?.click()}
+                disabled={uploadingAmbient}
+                className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 disabled:text-white/15 transition-colors border border-white/10 hover:border-white/20 px-2.5 py-1"
+              >
+                {uploadingAmbient ? 'Uploading…' : 'Upload'}
+              </button>
+              <button
+                onClick={() => openAudioLibrary('ambient')}
+                className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors border border-white/10 hover:border-white/20 px-2.5 py-1"
+              >
+                Library
+              </button>
+              <input ref={ambientFileRef} type="file" accept="audio/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleAudioUpload(f, 'ambient') }} />
+            </div>
+            {audioLibraryField === 'ambient' && (
+              <AudioLibraryPicker
+                assets={audioLibraryAssets}
+                onSelect={url => { saveAmbient({ ...ambientAudio, src: url }); setAudioLibraryField(null) }}
+                onClose={() => setAudioLibraryField(null)}
+              />
+            )}
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">vol</span>
@@ -511,6 +597,40 @@ function ScaledStage({ viewport, children }: { viewport: 'landscape' | 'portrait
       >
         {children}
       </div>
+    </div>
+  )
+}
+
+function AudioLibraryPicker({
+  assets,
+  onSelect,
+  onClose,
+}: {
+  assets: MediaAsset[]
+  onSelect: (url: string) => void
+  onClose: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pl-9">
+      <div className="flex items-center justify-between">
+        <span className="text-[9px] text-white/20 tracking-[0.1em] uppercase">Choose audio</span>
+        <button onClick={onClose} className="text-[9px] text-white/20 hover:text-white/50">close</button>
+      </div>
+      {assets.length === 0 ? (
+        <p className="text-[9px] text-white/15 italic">No audio in library</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {assets.map(a => (
+            <button
+              key={a.id}
+              onClick={() => onSelect(a.url)}
+              className="text-left text-[10px] text-white/40 hover:text-white/70 border border-white/[0.06] hover:border-white/15 px-2.5 py-1.5 transition-colors truncate"
+            >
+              {a.title ?? a.url.split('/').pop()}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
