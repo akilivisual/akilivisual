@@ -271,6 +271,9 @@ export interface MotionProfileData {
   loop?: boolean
   preset?: string
   keyframes?: KeyframeMap
+  scroll_trigger?: boolean
+  scroll_from?: number
+  scroll_to?: number
 }
 
 export interface ResonanceProfileData {

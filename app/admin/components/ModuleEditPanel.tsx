@@ -1673,6 +1673,23 @@ function ActorEditor({
               )}
 
               <Divider label="Motion" />
+              <Field label="Trigger">
+                <Select
+                  value={(ms.scroll_trigger as boolean) ? 'scroll' : 'enter'}
+                  options={[{ value: 'enter', label: 'On Enter' }, { value: 'scroll', label: 'Scroll' }]}
+                  onChange={(v) => setMS('scroll_trigger', v === 'scroll')}
+                />
+              </Field>
+              {(ms.scroll_trigger as boolean) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Start">
+                    <SliderInput value={(ms.scroll_from as number) ?? 0.1} min={0} max={0.9} step={0.05} onChange={(v) => setMS('scroll_from', v)} />
+                  </Field>
+                  <Field label="End">
+                    <SliderInput value={(ms.scroll_to as number) ?? 0.8} min={0.1} max={1.0} step={0.05} onChange={(v) => setMS('scroll_to', v)} />
+                  </Field>
+                </div>
+              )}
               <KeyframeTimeline
                 tracks={(ms.keyframes ?? {}) as KeyframeMap}
                 duration={(ms.duration as number) ?? 1.2}

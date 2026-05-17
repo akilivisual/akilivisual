@@ -1,9 +1,10 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { motion, useAnimation, useInView } from 'framer-motion'
+import { motion, useAnimation, useInView, useTransform } from 'framer-motion'
 import type { Actor, KeyframePoint } from '@/lib/schema/types'
 import { useMagnetic } from './hooks/useMagnetic'
+import { useSectionScroll } from './context/SectionScrollContext'
 
 interface ActorRendererProps {
   actor: Actor
@@ -114,6 +115,30 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   }
 
   const hidden = !!(actor.metadata as Record<string, unknown>)?.hidden
+  const scrollTrigger = !!(ms.scroll_trigger)
+  const scrollFrom = (ms.scroll_from as number) ?? 0.1
+  const scrollTo = (ms.scroll_to as number) ?? 0.8
+
+  // Derive per-preset start values for scroll animation
+  let scrollStartOpacity = opacityVal, scrollStartY = oy, scrollStartX = ox, scrollStartScale = scaleVal
+  if (scrollTrigger && preset !== 'none') {
+    switch (preset) {
+      case 'fade_in':   scrollStartOpacity = 0; break
+      case 'slide_up':  scrollStartOpacity = 0; scrollStartY = oy + 60; break
+      case 'slide_down':scrollStartOpacity = 0; scrollStartY = oy - 60; break
+      case 'slide_left':scrollStartOpacity = 0; scrollStartX = ox + 60; break
+      case 'slide_right':scrollStartOpacity = 0; scrollStartX = ox - 60; break
+      case 'scale_in':  scrollStartOpacity = 0; scrollStartScale = scaleVal * 0.5; break
+      default:          scrollStartOpacity = 0; scrollStartY = oy + 20; scrollStartScale = scaleVal * 0.92; break
+    }
+  }
+
+  // Scroll-driven MotionValues (always called — hooks must not be conditional)
+  const sectionScroll = useSectionScroll()
+  const scrollOpacity = useTransform(sectionScroll, [scrollFrom, scrollTo], [scrollStartOpacity, opacityVal], { clamp: true })
+  const scrollY      = useTransform(sectionScroll, [scrollFrom, scrollTo], [scrollStartY, oy], { clamp: true })
+  const scrollX      = useTransform(sectionScroll, [scrollFrom, scrollTo], [scrollStartX, ox], { clamp: true })
+  const scrollScale  = useTransform(sectionScroll, [scrollFrom, scrollTo], [scrollStartScale, scaleVal], { clamp: true })
 
   // Viewport detection — replay entrance each time the actor scrolls into view
   const containerRef = useRef<HTMLDivElement>(null)
@@ -121,14 +146,14 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   const controls = useAnimation()
 
   useEffect(() => {
-    if (hidden) return
+    if (hidden || scrollTrigger) return
     if (inView) {
       controls.start({ ...animateTo, transition })
     } else if (hasKF || preset !== 'none') {
       controls.set(initial)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inView, hidden])
+  }, [inView, hidden, scrollTrigger])
 
   // Magnetic pull — logo/text only, driven by cursor proximity
   const is = (actor.interaction_schema ?? {}) as Record<string, unknown>
@@ -147,8 +172,20 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
     ...(fullWidth ? { position: 'relative' as const, width: '100%', height: '100%', flex: '1 1 auto', minWidth: 0, minHeight: 0 } : {}),
   }
 
-  // Entrance motion gated on inView
-  const entrance = (
+  // Entrance — scroll-driven or inView-driven
+  const entrance = scrollTrigger ? (
+    <motion.div
+      style={{
+        opacity: scrollOpacity,
+        y: scrollY,
+        x: scrollX,
+        scale: scrollScale,
+        ...(fullWidth ? { width: '100%', height: '100%' } : {}),
+      }}
+    >
+      <ActorRenderer actor={actor} />
+    </motion.div>
+  ) : (
     <motion.div
       initial={initial}
       animate={controls}

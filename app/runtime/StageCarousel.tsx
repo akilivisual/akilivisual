@@ -9,6 +9,7 @@ import { FilterProvider, useFilter } from './context/FilterContext'
 import { LeftTray } from './components/LeftTray'
 import { RightTray } from './components/RightTray'
 import { RightTrayProvider } from './context/RightTrayContext'
+import { SectionScrollProvider } from './context/SectionScrollContext'
 import type { Album, CanvasWithPlacements } from '@/lib/schema/types'
 
 export function StageCarousel() {
@@ -25,6 +26,7 @@ function StageCarouselInner() {
   const [activeIndex, setActiveIndex] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([])
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const { activeAlbumId, activeLens } = useFilter()
 
   useEffect(() => {
@@ -97,7 +99,7 @@ function StageCarouselInner() {
         <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} albums={albums} canvases={canvases} />
 
         {/* Scroll container */}
-        <div className="h-screen overflow-y-scroll snap-y snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+        <div ref={scrollContainerRef} className="h-screen overflow-y-scroll snap-y snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
           {visible.length === 0 ? (
             <div className="h-screen flex items-center justify-center">
               <span className="text-white/15 text-xs tracking-widest uppercase">no states match</span>
@@ -108,9 +110,11 @@ function StageCarouselInner() {
               ref={(el) => { sectionRefs.current[i] = el }}
               className="relative w-full h-screen snap-start overflow-hidden bg-black"
             >
-              <PointerProvider>
-                <CanvasRenderer canvas={canvas} />
-              </PointerProvider>
+              <SectionScrollProvider containerRef={scrollContainerRef} sectionRef={sectionRefs.current[i]}>
+                <PointerProvider>
+                  <CanvasRenderer canvas={canvas} />
+                </PointerProvider>
+              </SectionScrollProvider>
             </div>
           ))}
         </div>
