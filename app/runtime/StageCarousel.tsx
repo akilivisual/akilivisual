@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { fetchAllCanvases, fetchAllAlbums } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
-import { ScrollableStateRenderer } from './ScrollableStateRenderer'
 import { PointerProvider } from './context/PointerContext'
 import { NavigationProvider } from './context/NavigationContext'
 import { FilterProvider, useFilter } from './context/FilterContext'
@@ -20,6 +19,8 @@ export function StageCarousel() {
     </FilterProvider>
   )
 }
+
+type Slide = { canvas: CanvasWithPlacements; parentId?: string }
 
 function StageCarouselInner() {
   const [canvases, setCanvases] = useState<CanvasWithPlacements[]>([])
@@ -49,9 +50,34 @@ function StageCarouselInner() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
+  // Canvas IDs that are sections of a scrollable state — excluded from top-level
+  const allSectionIds = useMemo(() => new Set(
+    canvases
+      .filter(c => c.canvas_type === 'scrollable')
+      .flatMap(c => (c.metadata?.sections as string[]) ?? [])
+  ), [canvases])
+
+  // Top-level canvases: exclude raw section canvases + apply album/lens filter
+  const visible = useMemo(() => canvases.filter(c => {
+    if (allSectionIds.has(c.id)) return false
+    if (activeAlbumId && c.album_id !== activeAlbumId) return false
+    if (activeLens && !(c.lenses ?? []).includes(activeLens)) return false
+    return true
+  }), [canvases, allSectionIds, activeAlbumId, activeLens])
+
+  // Flat slide list: scrollable canvases expand into their sections
+  const slides = useMemo<Slide[]>(() => visible.flatMap(canvas => {
+    if (canvas.canvas_type !== 'scrollable') return [{ canvas }]
+    const sectionIds = (canvas.metadata?.sections as string[]) ?? []
+    const sections = sectionIds.map(id => canvases.find(c => c.id === id)).filter(Boolean) as CanvasWithPlacements[]
+    return sections.length > 0
+      ? sections.map(s => ({ canvas: s, parentId: canvas.id }))
+      : [{ canvas }]
+  }), [visible, canvases])
+
   useEffect(() => {
-    if (canvases.length === 0) return
-    const observers = canvases.map((_, i) => {
+    if (slides.length === 0) return
+    const observers = slides.map((_, i) => {
       const el = sectionRefs.current[i]
       if (!el) return null
       const obs = new IntersectionObserver(
@@ -62,14 +88,7 @@ function StageCarouselInner() {
       return obs
     })
     return () => observers.forEach((o) => o?.disconnect())
-  }, [canvases])
-
-  // Filter canvases by active album/lens — resets activeIndex if needed
-  const visible = canvases.filter(c => {
-    if (activeAlbumId && c.album_id !== activeAlbumId) return false
-    if (activeLens && !(c.lenses ?? []).includes(activeLens)) return false
-    return true
-  })
+  }, [slides])
 
   if (!loaded) {
     return (
@@ -87,36 +106,39 @@ function StageCarouselInner() {
     )
   }
 
-  const safeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1))
-  const activeCanvas = visible[safeIndex] ?? null
+  const safeIndex = Math.min(activeIndex, Math.max(0, slides.length - 1))
+  const activeSlide = slides[safeIndex] ?? null
+  const activeCanvas = activeSlide?.canvas ?? null
   const trayPlacements = (activeCanvas?.placements ?? []).filter(
     p => ((p.overrides ?? {}) as Record<string, unknown>).context === 'tray'
   )
 
+  // Map active slide back to visible index for LeftTray highlight
+  const activeVisibleIndex = activeSlide
+    ? visible.findIndex(c => c.id === (activeSlide.parentId ?? activeSlide.canvas.id))
+    : safeIndex
+
   return (
-    <NavigationProvider canvases={visible} sectionRefs={sectionRefs}>
+    <NavigationProvider canvases={slides.map(s => s.canvas)} sectionRefs={sectionRefs}>
       <RightTrayProvider>
-        <LeftTray canvases={visible} albums={albums} activeIndex={safeIndex} />
+        <LeftTray canvases={visible} albums={albums} activeIndex={Math.max(0, activeVisibleIndex)} />
         <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} albums={albums} canvases={canvases} />
 
         {/* Scroll container */}
         <div ref={scrollContainerRef} className="h-screen overflow-y-scroll snap-y snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-          {visible.length === 0 ? (
+          {slides.length === 0 ? (
             <div className="h-screen flex items-center justify-center">
               <span className="text-white/15 text-xs tracking-widest uppercase">no states match</span>
             </div>
-          ) : visible.map((canvas, i) => (
+          ) : slides.map((slide, i) => (
             <div
-              key={canvas.id}
+              key={slide.canvas.id}
               ref={(el) => { sectionRefs.current[i] = el }}
               className="relative w-full h-screen snap-start overflow-hidden bg-black"
             >
               <SectionScrollProvider containerRef={scrollContainerRef} sectionRef={sectionRefs.current[i]}>
                 <PointerProvider>
-                  {canvas.canvas_type === 'scrollable'
-                    ? <ScrollableStateRenderer canvas={canvas} />
-                    : <CanvasRenderer canvas={canvas} />
-                  }
+                  <CanvasRenderer canvas={slide.canvas} />
                 </PointerProvider>
               </SectionScrollProvider>
             </div>
@@ -124,17 +146,19 @@ function StageCarouselInner() {
         </div>
 
         {/* Dot navigator */}
-        {visible.length > 1 && (
+        {slides.length > 1 && (
           <div className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50">
-            {visible.map((canvas, i) => (
+            {slides.map((slide, i) => (
               <button
-                key={canvas.id}
+                key={slide.canvas.id}
                 onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth' })}
-                title={canvas.title}
+                title={slide.canvas.title}
                 className={`w-1.5 rounded-full transition-all duration-500 ${
                   i === safeIndex
                     ? 'h-5 bg-white'
-                    : 'h-1.5 bg-white/25 hover:bg-white/50'
+                    : slide.parentId
+                      ? 'h-1.5 bg-white/15 hover:bg-white/35'
+                      : 'h-1.5 bg-white/25 hover:bg-white/50'
                 }`}
               />
             ))}
