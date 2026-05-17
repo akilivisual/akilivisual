@@ -10,6 +10,7 @@ import { updateCanvasMetadata } from '@/app/admin/actions/canvas'
 import { assignStateToAlbum, updateCanvasLenses } from '@/app/admin/actions/albums'
 import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
 import { getSupabase } from '@/lib/supabase/client'
+import { fetchAllCanvases } from '@/lib/supabase/canvas'
 import { PlacementList } from './PlacementList'
 import { CanvasEditor } from './CanvasEditor'
 import { ModuleEditPanel } from './ModuleEditPanel'
@@ -33,10 +34,23 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
   const [libraryAssets, setLibraryAssets] = useState<MediaAsset[]>([])
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [sectionIds, setSectionIds] = useState<string[]>((canvas.metadata?.sections as string[]) ?? [])
+  const [allCanvases, setAllCanvases] = useState<CanvasWithPlacements[]>([])
+  const [showSectionPicker, setShowSectionPicker] = useState(false)
+
+  useEffect(() => {
+    if (canvas.canvas_type !== 'scrollable') return
+    fetchAllCanvases().then(setAllCanvases)
+  }, [])
 
   async function saveThumbnail(url: string) {
     setThumbnail(url)
     await updateCanvasMetadata(canvas.id, { ...canvas.metadata, thumbnail_url: url || undefined })
+  }
+
+  async function saveSections(ids: string[]) {
+    setSectionIds(ids)
+    await updateCanvasMetadata(canvas.id, { ...canvas.metadata, sections: ids })
   }
 
   async function openLibrary() {
@@ -243,6 +257,61 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
             </div>
           )}
         </div>
+
+        {/* Sections panel — scrollable canvases only */}
+        {canvas.canvas_type === 'scrollable' && (
+          <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-3">
+            <span className="text-[9px] tracking-[0.2em] uppercase text-white/25">Sections</span>
+            {sectionIds.length === 0 ? (
+              <p className="text-[9px] text-white/15 italic">No sections added</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {sectionIds.map((id, i) => {
+                  const c = allCanvases.find(x => x.id === id)
+                  return (
+                    <div key={id} className="flex items-center gap-2 group">
+                      <span className="text-[9px] text-white/20 w-4 shrink-0">{i + 1}</span>
+                      <span className="text-[11px] text-white/60 flex-1 truncate">{c?.title ?? id}</span>
+                      <button
+                        onClick={() => saveSections(sectionIds.filter((_, j) => j !== i))}
+                        className="text-[9px] text-white/20 hover:text-white/60 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {showSectionPicker ? (
+              <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-white/20 tracking-[0.1em] uppercase">Choose state</span>
+                  <button onClick={() => setShowSectionPicker(false)} className="text-[9px] text-white/20 hover:text-white/50">close</button>
+                </div>
+                {allCanvases
+                  .filter(c => c.id !== canvas.id && c.canvas_type !== 'scrollable' && !sectionIds.includes(c.id))
+                  .map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => { saveSections([...sectionIds, c.id]); setShowSectionPicker(false) }}
+                      className="text-left text-[11px] text-white/50 hover:text-white/80 border border-white/10 hover:border-white/25 px-3 py-1.5 transition-colors"
+                    >
+                      {c.title}
+                      <span className="text-[9px] text-white/20 ml-2">{c.canvas_type}</span>
+                    </button>
+                  ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSectionPicker(true)}
+                className="text-[9px] tracking-[0.15em] uppercase text-white/30 hover:text-white/60 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 self-start"
+              >
+                + Add Section
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Placement list */}
         <div className="py-5 flex-1">

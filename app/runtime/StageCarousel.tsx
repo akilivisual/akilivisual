@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchAllCanvases, fetchAllAlbums } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
+import { ScrollableStateRenderer } from './ScrollableStateRenderer'
 import { PointerProvider } from './context/PointerContext'
 import { NavigationProvider } from './context/NavigationContext'
 import { FilterProvider, useFilter } from './context/FilterContext'
@@ -112,7 +113,10 @@ function StageCarouselInner() {
             >
               <SectionScrollProvider containerRef={scrollContainerRef} sectionRef={sectionRefs.current[i]}>
                 <PointerProvider>
-                  <CanvasRenderer canvas={canvas} />
+                  {canvas.canvas_type === 'scrollable'
+                    ? <ScrollableStateRenderer canvas={canvas} />
+                    : <CanvasRenderer canvas={canvas} />
+                  }
                 </PointerProvider>
               </SectionScrollProvider>
             </div>

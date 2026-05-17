@@ -115,6 +115,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   }
 
   const hidden = !!(actor.metadata as Record<string, unknown>)?.hidden
+  const sharedId = (actor.metadata as Record<string, unknown>)?.shared_id as string | undefined
   const scrollTrigger = !!(ms.scroll_trigger)
   const scrollFrom = (ms.scroll_from as number) ?? 0.1
   const scrollTo = (ms.scroll_to as number) ?? 0.8
@@ -148,7 +149,11 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
   useEffect(() => {
     if (hidden || scrollTrigger) return
     if (inView) {
-      controls.start({ ...animateTo, transition })
+      if (sharedId) {
+        controls.set(animateTo)
+      } else {
+        controls.start({ ...animateTo, transition })
+      }
     } else if (hasKF || preset !== 'none') {
       controls.set(initial)
     }
@@ -172,9 +177,14 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
     ...(fullWidth ? { position: 'relative' as const, width: '100%', height: '100%', flex: '1 1 auto', minWidth: 0, minHeight: 0 } : {}),
   }
 
+  const layoutProps = sharedId
+    ? { layoutId: sharedId, layout: true as const, transition: { layout: { type: 'spring' as const, stiffness: 200, damping: 28 } } }
+    : {}
+
   // Entrance — scroll-driven or inView-driven
   const entrance = scrollTrigger ? (
     <motion.div
+      {...layoutProps}
       style={{
         opacity: scrollOpacity,
         y: scrollY,
@@ -187,6 +197,7 @@ export function FlexActor({ actor, moduleMotion }: { actor: Actor; moduleMotion?
     </motion.div>
   ) : (
     <motion.div
+      {...layoutProps}
       initial={initial}
       animate={controls}
       style={fullWidth ? { width: '100%', height: '100%' } : undefined}

@@ -1145,6 +1145,9 @@ function ActorEditor({
   function setMS(key: string, value: unknown) {
     setActor({ ...actor, motion_schema: { ...ms, [key]: value } })
   }
+  function setMeta(key: string, value: unknown) {
+    setActor({ ...actor, metadata: { ...((actor.metadata as Record<string, unknown>) ?? {}), [key]: value } })
+  }
   function setIS(key: string, value: unknown) {
     setActor({ ...actor, interaction_schema: { ...is, [key]: value } as Actor['interaction_schema'] })
   }
@@ -1673,6 +1676,21 @@ function ActorEditor({
               )}
 
               <Divider label="Motion" />
+              <Field label="Morph ID">
+                <input
+                  type="text"
+                  className="w-full bg-transparent border-b border-white/15 text-white/70 text-[11px] font-mono py-1 focus:outline-none focus:border-white/35 transition-colors"
+                  placeholder="e.g. logo, headline"
+                  defaultValue={((actor.metadata as Record<string, unknown>)?.shared_id as string) ?? ''}
+                  onBlur={async (e) => {
+                    const val = e.target.value.trim()
+                    setMeta('shared_id', val || undefined)
+                    const newMeta = { ...((actor.metadata as Record<string, unknown>) ?? {}), shared_id: val || undefined }
+                    await updateActor(actor.id, { metadata: newMeta })
+                  }}
+                />
+              </Field>
+              <p className="text-[10px] text-white/20 tracking-[0.1em] -mt-2">Actors sharing the same Morph ID animate between sections.</p>
               <Field label="Trigger">
                 <Select
                   value={(ms.scroll_trigger as boolean) ? 'scroll' : 'enter'}

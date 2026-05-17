@@ -71,6 +71,27 @@ export async function fetchAllAlbums(): Promise<Album[]> {
   return (data ?? []) as Album[]
 }
 
+export async function fetchCanvasesByIds(ids: string[]): Promise<CanvasWithPlacements[]> {
+  if (ids.length === 0) return []
+  const supabase = getSupabase()
+  const { data: canvases } = await supabase
+    .from('canvases')
+    .select('*')
+    .in('id', ids)
+
+  if (!canvases) return []
+
+  const withPlacements = await Promise.all(
+    (canvases as Canvas[]).map(async (canvas) => {
+      const placements = await fetchPlacements(supabase, canvas.id)
+      return { ...canvas, placements }
+    })
+  )
+
+  // Return in the same order as `ids`
+  return ids.map(id => withPlacements.find(c => c.id === id)).filter(Boolean) as CanvasWithPlacements[]
+}
+
 export async function fetchCanvasesByProject(projectSlug: string): Promise<CanvasWithPlacements[]> {
   const supabase = getSupabase()
 

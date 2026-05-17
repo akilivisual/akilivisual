@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createCanvas } from '@/app/admin/actions/canvas'
 
-const CANVAS_TYPES = ['default', 'hero', 'feature', 'gallery', 'narrative', 'ambient']
+const CANVAS_TYPES = ['default', 'hero', 'feature', 'gallery', 'narrative', 'ambient', 'scrollable']
 
 function toSlug(title: string) {
   return title
