@@ -110,6 +110,9 @@ export async function duplicateCanvas(id: string): Promise<{ ok: boolean; slug?:
       resonance_profile: source.resonance_profile,
       transition_profile: source.transition_profile,
       metadata: source.metadata,
+      lenses: source.lenses ?? [],
+      album_id: source.album_id ?? null,
+      project_id: source.project_id ?? null,
     })
     .select()
     .single()
