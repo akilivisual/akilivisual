@@ -446,7 +446,8 @@ function LayoutTab({
 
 const CLICK_ACTIONS = [
   { value: 'none',            label: 'None' },
-  { value: 'navigate_canvas', label: 'Navigate to State' },
+  { value: 'navigate_next',   label: 'Go to Next State' },
+  { value: 'navigate_canvas', label: 'Navigate to Specific State' },
   { value: 'external_link',   label: 'External Link' },
   { value: 'open_right_tray', label: 'Open Right Tray' },
 ]

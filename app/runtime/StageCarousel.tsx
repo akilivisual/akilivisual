@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { fetchAllCanvases, fetchAllAlbums } from '@/lib/supabase/canvas'
 import { CanvasRenderer } from './CanvasRenderer'
 import { PointerProvider } from './context/PointerContext'
-import { NavigationProvider } from './context/NavigationContext'
+import { NavigationProvider, useNavigation } from './context/NavigationContext'
 import { FilterProvider, useFilter } from './context/FilterContext'
 import { LeftTray } from './components/LeftTray'
 import { RightTray } from './components/RightTray'
@@ -119,7 +119,8 @@ function StageCarouselInner() {
     : safeIndex
 
   return (
-    <NavigationProvider canvases={slides.map(s => s.canvas)} sectionRefs={sectionRefs}>
+    <NavigationProvider canvases={slides.map(s => s.canvas)} sectionRefs={sectionRefs} activeCanvasId={activeCanvas?.id}>
+      <KeyboardNav />
       <RightTrayProvider>
         <LeftTray canvases={visible} albums={albums} activeIndex={Math.max(0, activeVisibleIndex)} />
         <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} albums={albums} canvases={canvases} />
@@ -169,4 +170,18 @@ function StageCarouselInner() {
       </RightTrayProvider>
     </NavigationProvider>
   )
+}
+
+function KeyboardNav() {
+  const { goNext, goPrev } = useNavigation()
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goNext() }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goPrev() }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [goNext, goPrev])
+  return null
 }

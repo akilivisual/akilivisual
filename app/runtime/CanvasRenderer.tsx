@@ -120,13 +120,14 @@ export function ModuleWrapper({ placement, children }: { placement: PlacementWit
   const clickAction = (ip.click_action as string) ?? 'none'
   const clickTarget = (ip.click_target as string) ?? ''
   const clickNewTab = (ip.click_new_tab as boolean) ?? false
-  const clickable = clickAction === 'open_right_tray' || (clickAction !== 'none' && !!clickTarget)
+  const clickable = clickAction === 'open_right_tray' || clickAction === 'navigate_next' || (clickAction !== 'none' && !!clickTarget)
 
-  const { navigateTo } = useNavigation()
+  const { navigateTo, goNext } = useNavigation()
   const { openTray } = useRightTray()
 
   function handleClick() {
     if (clickAction === 'navigate_canvas') navigateTo(clickTarget)
+    else if (clickAction === 'navigate_next') goNext()
     else if (clickAction === 'external_link') window.open(clickTarget, clickNewTab ? '_blank' : '_self')
     else if (clickAction === 'open_right_tray') openTray()
   }
