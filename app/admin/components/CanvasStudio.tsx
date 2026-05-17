@@ -116,7 +116,7 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
     <div className="flex h-screen overflow-hidden">
 
       {/* ── Left panel — controls ───────────────────────────── */}
-      <div className="w-[460px] shrink-0 border-r border-white/10 overflow-y-auto flex flex-col min-h-0">
+      <div className="w-[460px] shrink-0 border-r border-white/10 overflow-y-auto">
 
         {/* Header */}
         <div className="px-8 pt-8 pb-6 border-b border-white/10 shrink-0">
@@ -316,7 +316,7 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
         </div>
 
         {/* Unified layer panel */}
-        <div className="py-5 flex-1 min-h-0 overflow-y-auto">
+        <div className="py-5">
           <LayerPanel
             canvas={canvas}
             placements={placements}
