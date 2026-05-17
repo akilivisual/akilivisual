@@ -7,17 +7,22 @@ import { CanvasRenderer } from './CanvasRenderer'
 import { PointerProvider } from './context/PointerContext'
 import { NavigationProvider, useNavigation } from './context/NavigationContext'
 import { FilterProvider, useFilter } from './context/FilterContext'
+import { AudioProvider, useAudio } from './context/AudioContext'
 import { LeftTray } from './components/LeftTray'
 import { RightTray } from './components/RightTray'
 import { RightTrayProvider } from './context/RightTrayContext'
 import { SectionScrollProvider } from './context/SectionScrollContext'
+import { WelcomeGate } from './WelcomeGate'
+import { AmbientAudioEngine } from './AmbientAudioEngine'
 import type { Album, CanvasWithPlacements } from '@/lib/schema/types'
 
 export function StageCarousel() {
   return (
-    <FilterProvider>
-      <StageCarouselInner />
-    </FilterProvider>
+    <AudioProvider>
+      <FilterProvider>
+        <StageCarouselInner />
+      </FilterProvider>
+    </AudioProvider>
   )
 }
 
@@ -30,6 +35,7 @@ function StageCarouselInner() {
   const [loaded, setLoaded] = useState(false)
   const stateContainerRef = useRef<HTMLDivElement>(null)
   const { activeAlbumId, activeLens } = useFilter()
+  const { audioUnlocked, unlock } = useAudio()
 
   useEffect(() => {
     Promise.all([fetchAllCanvases(), fetchAllAlbums()]).then(([cvs, albs]) => {
@@ -117,8 +123,14 @@ function StageCarouselInner() {
       activeCanvasId={activeCanvas?.id}
       onNavigate={setActiveIndex}
     >
+      <AnimatePresence>
+        {loaded && !audioUnlocked && (
+          <WelcomeGate key="welcome-gate" onUnlock={unlock} />
+        )}
+      </AnimatePresence>
       <KeyboardNav />
       <RightTrayProvider>
+        <AmbientAudioEngine activeCanvas={activeCanvas} audioUnlocked={audioUnlocked} />
         <LeftTray canvases={visible} albums={albums} activeIndex={Math.max(0, activeVisibleIndex)} />
         <RightTray activeCanvas={activeCanvas} trayPlacements={trayPlacements} albums={albums} canvases={canvases} />
 

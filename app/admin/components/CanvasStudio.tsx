@@ -39,6 +39,9 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
   const [transitionProfile, setTransitionProfile] = useState<TransitionProfile>(
     (canvas.transition_profile ?? {}) as TransitionProfile
   )
+  const [ambientAudio, setAmbientAudio] = useState<{ src?: string; volume?: number; loop?: boolean }>(
+    (canvas.metadata?.ambient_audio as Record<string, unknown> ?? {}) as { src?: string; volume?: number; loop?: boolean }
+  )
 
   useEffect(() => {
     fetchAllCanvases().then(setAllCanvases)
@@ -52,6 +55,14 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
   async function saveTransition(updated: TransitionProfile) {
     setTransitionProfile(updated)
     await updateTransitionProfile(canvas.id, updated)
+  }
+
+  async function saveAmbient(updated: { src?: string; volume?: number; loop?: boolean }) {
+    setAmbientAudio(updated)
+    await updateCanvasMetadata(canvas.id, {
+      ...canvas.metadata,
+      ambient_audio: updated.src ? updated : undefined,
+    })
   }
 
   async function openLibrary() {
@@ -265,28 +276,77 @@ export function CanvasStudio({ canvas, albums = [] }: CanvasStudioProps) {
           {(['intro', 'outro'] as const).map(dir => {
             const step = (transitionProfile[dir] ?? {}) as TransitionStep
             return (
-              <div key={dir} className="flex items-center gap-3">
-                <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-10 shrink-0">{dir}</span>
-                <select
-                  value={step.type ?? 'fade'}
-                  onChange={e => saveTransition({ ...transitionProfile, [dir]: { ...step, type: e.target.value } })}
-                  className="bg-transparent border-b border-white/10 text-white/60 text-[10px] py-0.5 focus:outline-none"
-                >
-                  {['fade', 'slide', 'scale', 'dissolve', 'none'].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  value={step.duration ?? 0.8}
-                  min={0.1} max={3} step={0.1}
-                  onChange={e => saveTransition({ ...transitionProfile, [dir]: { ...step, duration: parseFloat(e.target.value) } })}
-                  className="w-14 bg-transparent border-b border-white/10 text-white/60 text-[10px] py-0.5 focus:outline-none text-right"
-                />
-                <span className="text-[9px] text-white/20">s</span>
+              <div key={dir} className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] tracking-[0.15em] uppercase text-white/25 w-10 shrink-0">{dir}</span>
+                  <select
+                    value={step.type ?? 'fade'}
+                    onChange={e => saveTransition({ ...transitionProfile, [dir]: { ...step, type: e.target.value } })}
+                    className="bg-transparent border-b border-white/10 text-white/60 text-[10px] py-0.5 focus:outline-none"
+                  >
+                    {['fade', 'slide', 'scale', 'dissolve', 'none'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    value={step.duration ?? 0.8}
+                    min={0.1} max={3} step={0.1}
+                    onChange={e => saveTransition({ ...transitionProfile, [dir]: { ...step, duration: parseFloat(e.target.value) } })}
+                    className="w-14 bg-transparent border-b border-white/10 text-white/60 text-[10px] py-0.5 focus:outline-none text-right"
+                  />
+                  <span className="text-[9px] text-white/20">s</span>
+                </div>
+                {dir === 'intro' && (
+                  <div className="flex items-center gap-3 pl-[52px]">
+                    <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">sfx</span>
+                    <input
+                      type="url"
+                      value={step.sfx ?? ''}
+                      placeholder="https://…"
+                      onChange={e => saveTransition({ ...transitionProfile, intro: { ...step, sfx: e.target.value || undefined } })}
+                      className="flex-1 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none placeholder:text-white/15"
+                    />
+                  </div>
+                )}
               </div>
             )
           })}
+        </div>
+
+        {/* Ambient Audio */}
+        <div className="px-8 py-5 border-b border-white/[0.06] shrink-0 flex flex-col gap-3">
+          <span className="text-[9px] tracking-[0.2em] uppercase text-white/25">Ambient Audio</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">src</span>
+            <input
+              type="url"
+              value={ambientAudio.src ?? ''}
+              placeholder="https://…"
+              onBlur={e => saveAmbient({ ...ambientAudio, src: e.target.value || undefined })}
+              onChange={e => setAmbientAudio(a => ({ ...a, src: e.target.value || undefined }))}
+              className="flex-1 bg-transparent border-b border-white/10 text-white/50 text-[10px] py-0.5 focus:outline-none placeholder:text-white/15"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">vol</span>
+            <input
+              type="range" min={0} max={1} step={0.1}
+              value={ambientAudio.volume ?? 0.7}
+              onChange={e => saveAmbient({ ...ambientAudio, volume: parseFloat(e.target.value) })}
+              className="flex-1 accent-white/40"
+            />
+            <span className="text-[10px] text-white/30 w-6 text-right">{(ambientAudio.volume ?? 0.7).toFixed(1)}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[9px] tracking-[0.15em] uppercase text-white/20 w-6 shrink-0">loop</span>
+            <input
+              type="checkbox"
+              checked={ambientAudio.loop ?? true}
+              onChange={e => saveAmbient({ ...ambientAudio, loop: e.target.checked })}
+              className="accent-white/40"
+            />
+          </div>
         </div>
 
         {/* Next State */}

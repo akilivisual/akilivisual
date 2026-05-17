@@ -5,6 +5,7 @@ import { motion, useAnimation, useInView, useTransform } from 'framer-motion'
 import type { Actor, KeyframePoint } from '@/lib/schema/types'
 import { useMagnetic } from './hooks/useMagnetic'
 import { useSectionScroll } from './context/SectionScrollContext'
+import { useAudio } from './context/AudioContext'
 
 interface ActorRendererProps {
   actor: Actor
@@ -490,6 +491,7 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
   const textColor = (vs.player_text as string) ?? '#ffffff'
   const radius = (vs.player_radius as number) ?? 0
 
+  const { audioUnlocked } = useAudio()
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -512,9 +514,8 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration))
 
     if (autoplay) {
-      audio.muted = true
-      // Try immediately; if not ready yet, try again on canplay
-      const tryPlay = () => { audio.muted = true; audio.play().catch(() => {}) }
+      const startMuted = !audioUnlocked
+      const tryPlay = () => { audio.muted = startMuted; audio.play().catch(() => {}) }
       if (audio.readyState >= 2) {
         tryPlay()
       } else {
@@ -522,6 +523,16 @@ function CustomAudioPlayer({ actor }: { actor: Actor }) {
       }
     }
   }, [])
+
+  // When the gate is dismissed mid-session, unmute any playing audio actor
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !audioUnlocked) return
+    if (!audio.paused && !userChoseSound.current) {
+      audio.muted = false
+      setMuted(false)
+    }
+  }, [audioUnlocked])
 
   function doUnmute() {
     const audio = audioRef.current

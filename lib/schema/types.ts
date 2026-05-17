@@ -328,6 +328,7 @@ export interface TransitionStep {
   duration?: number
   easing?: string
   direction?: 'left' | 'right' | 'up' | 'down'
+  sfx?: string
 }
 
 export interface TransitionProfile {
