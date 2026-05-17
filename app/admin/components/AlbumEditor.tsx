@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Reorder, useDragControls } from 'framer-motion'
 import type { AlbumWithStates, Canvas, MediaAsset } from '@/lib/schema/types'
 import { updateAlbum, updateAlbumMetadata, assignStateToAlbum, reorderAlbumStates } from '@/app/admin/actions/albums'
+import { createCanvasForAlbum } from '@/app/admin/actions/canvas'
 import { createMediaAsset, listMediaAssets } from '@/app/admin/actions/media'
 import { getSupabase } from '@/lib/supabase/client'
 
@@ -110,6 +111,28 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
     setStates(prev => prev.filter(s => s.id !== canvas.id))
     setUnassigned(prev => [...prev, canvas])
     await assignStateToAlbum(canvas.id, null)
+  }
+
+  const [showNewState, setShowNewState] = useState(false)
+  const [newStateTitle, setNewStateTitle] = useState('')
+  const [newStateType, setNewStateType] = useState('default')
+  const [creatingState, setCreatingState] = useState(false)
+  const [newStateError, setNewStateError] = useState('')
+
+  function toSlug(v: string) {
+    return v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+  }
+
+  async function handleCreateState(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newStateTitle.trim()) return
+    setCreatingState(true)
+    setNewStateError('')
+    const result = await createCanvasForAlbum(newStateTitle, toSlug(newStateTitle), newStateType, album.id)
+    if (!result?.ok) {
+      setNewStateError(result?.error ?? 'Failed to create state')
+      setCreatingState(false)
+    }
   }
 
   return (
@@ -296,6 +319,57 @@ export function AlbumEditor({ album, unassignedStates: initialUnassigned }: Albu
           </Reorder.Group>
         ) : (
           <p className="text-[11px] text-white/20 italic mb-4">No states assigned yet</p>
+        )}
+
+        {/* New State inline form */}
+        {showNewState ? (
+          <form onSubmit={handleCreateState} className="flex flex-col gap-3 border border-white/10 p-4 mb-4">
+            <p className="text-[9px] tracking-[0.2em] uppercase text-white/25">New State</p>
+            <input
+              autoFocus
+              type="text"
+              value={newStateTitle}
+              onChange={e => setNewStateTitle(e.target.value)}
+              placeholder="State title"
+              className="bg-transparent border-b border-white/15 text-white/80 text-sm py-1.5 focus:outline-none focus:border-white/40 tracking-wide placeholder:text-white/20"
+            />
+            <div className="flex items-center gap-2">
+              <label className="text-[9px] tracking-[0.15em] uppercase text-white/25 shrink-0">Type</label>
+              <select
+                value={newStateType}
+                onChange={e => setNewStateType(e.target.value)}
+                className="bg-black border-b border-white/10 text-white/60 text-[11px] py-1 focus:outline-none focus:border-white/30 flex-1"
+              >
+                {['default', 'hero', 'feature', 'gallery', 'narrative', 'ambient', 'scrollable'].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            {newStateError && <p className="text-[10px] text-red-400/70">{newStateError}</p>}
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={!newStateTitle.trim() || creatingState}
+                className="text-[10px] tracking-[0.2em] uppercase text-white/50 hover:text-white/80 disabled:text-white/20 transition-colors border border-white/15 hover:border-white/30 px-4 py-1.5"
+              >
+                {creatingState ? 'Creating…' : 'Create & Edit'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowNewState(false); setNewStateTitle(''); setNewStateError('') }}
+                className="text-[10px] tracking-[0.15em] uppercase text-white/20 hover:text-white/50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            onClick={() => setShowNewState(true)}
+            className="text-[10px] tracking-[0.2em] uppercase text-white/25 hover:text-white/60 transition-colors border border-dashed border-white/10 hover:border-white/25 px-4 py-2 self-start mb-4"
+          >
+            + New State
+          </button>
         )}
 
         {unassigned.length > 0 && (
