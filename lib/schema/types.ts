@@ -323,7 +323,17 @@ export interface ResonanceProfileData {
   color_bias?: string
 }
 
+export interface TransitionStep {
+  type?: 'fade' | 'slide' | 'scale' | 'dissolve' | 'none'
+  duration?: number
+  easing?: string
+  direction?: 'left' | 'right' | 'up' | 'down'
+}
+
 export interface TransitionProfile {
+  intro?: TransitionStep
+  outro?: TransitionStep
+  // Legacy flat fields — fallback when intro/outro not set
   type?: 'fade' | 'slide' | 'scale' | 'none'
   duration?: number
   easing?: string

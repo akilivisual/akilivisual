@@ -3,6 +3,7 @@
 import { getAdminSupabase } from '@/lib/supabase/admin-client'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import type { TransitionProfile } from '@/lib/schema/types'
 
 export async function createCanvas(
   title: string,
@@ -95,6 +96,17 @@ export async function updateCanvasMetadata(
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = getAdminSupabase()
   const { error } = await supabase.from('canvases').update({ metadata }).eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/admin')
+  return { ok: true }
+}
+
+export async function updateTransitionProfile(
+  id: string,
+  profile: TransitionProfile
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getAdminSupabase()
+  const { error } = await supabase.from('canvases').update({ transition_profile: profile }).eq('id', id)
   if (error) return { ok: false, error: error.message }
   revalidatePath('/admin')
   return { ok: true }

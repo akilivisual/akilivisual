@@ -1,7 +1,26 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import type { CanvasWithPlacements, PlacementWithModule, ModuleWithActors } from '@/lib/schema/types'
+import type { CanvasWithPlacements, PlacementWithModule, ModuleWithActors, TransitionProfile, TransitionStep } from '@/lib/schema/types'
+
+function buildVariant(step: TransitionStep | undefined, fallback: TransitionProfile) {
+  const type = step?.type ?? fallback.type ?? 'fade'
+  const direction = step?.direction ?? 'left'
+  const offset = 60
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const v: Record<string, any> = {}
+  if (type === 'none') return v
+  v.opacity = 0
+  if (type === 'slide') {
+    v.x = direction === 'left' ? -offset : direction === 'right' ? offset : 0
+    v.y = direction === 'up' ? -offset : direction === 'down' ? offset : 0
+  } else if (type === 'scale') {
+    v.scale = 0.92
+  } else if (type === 'dissolve') {
+    v.filter = 'blur(16px)'
+  }
+  return v
+}
 import { ModuleRenderer } from './ModuleRenderer'
 import { SectionRenderer } from './SectionRenderer'
 import { useParallax } from './hooks/useParallax'
@@ -14,21 +33,23 @@ interface CanvasRendererProps {
 }
 
 export function CanvasRenderer({ canvas }: CanvasRendererProps) {
-  const transition = canvas.transition_profile
+  const tp = (canvas.transition_profile ?? {}) as TransitionProfile
   const hasSections = (canvas.sections?.length ?? 0) > 0
+
+  const introVariant = buildVariant(tp.intro, tp)
+  const outroVariant = buildVariant(tp.outro, tp)
+  const introDuration = tp.intro?.duration ?? tp.duration ?? 0.8
+  const easing = tp.intro?.easing ?? tp.easing ?? 'easeInOut'
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={canvas.id}
         className={hasSections ? 'relative w-full' : 'absolute inset-0'}
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{
-          duration: transition?.duration ?? 0.8,
-          ease: transition?.easing ?? 'easeInOut',
-        }}
+        initial={introVariant}
+        animate={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }}
+        exit={outroVariant}
+        transition={{ duration: introDuration, ease: easing }}
       >
         {hasSections ? (
           canvas.sections.map(section => (
